@@ -1,93 +1,472 @@
-// =============================================
-// COVA 簽收單 - Google Apps Script
-// 功能：接收簽收單 PDF + 安裝照片，寄送到公司信箱
-// =============================================
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>COVA 到府安裝簽收單</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'PingFang TC', 'Noto Sans TC', sans-serif; font-size: 14px; background: #f5f5f7; color: #1d1d1f; }
+    .page { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; padding: 1.2rem 1rem 2rem; }
+    .brand { text-align: center; padding: 14px 0 12px; border-bottom: 2px solid #1d1d1f; margin-bottom: 14px; }
+    .brand h1 { font-size: 17px; font-weight: 600; letter-spacing: 3px; }
+    .brand p { font-size: 11px; color: #6e6e73; margin-top: 3px; letter-spacing: 1px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #d1d1d6; margin-bottom: 14px; }
+    .info-cell { padding: 6px 8px; border: 0.5px solid #e5e5ea; }
+    .info-cell.wide { grid-column: span 2; }
+    .info-cell label { display: block; font-size: 10px; color: #8e8e93; margin-bottom: 2px; font-weight: 500; }
+    .info-cell .val { font-size: 13px; color: #1d1d1f; }
+    .info-cell input { font-size: 13px; color: #1d1d1f; width: 100%; border: none; outline: none; background: transparent; font-family: inherit; }
+    .info-cell input::placeholder { color: #c7c7cc; }
+    .section-title { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; color: #8e8e93; text-transform: uppercase; margin: 14px 0 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #f2f2f7; padding: 6px 4px; text-align: center; font-weight: 600; font-size: 11px; border: 0.5px solid #d1d1d6; color: #3a3a3c; }
+    td { padding: 4px 3px; border: 0.5px solid #e5e5ea; text-align: center; vertical-align: middle; }
+    td input { width: 100%; border: none; background: transparent; text-align: center; font-size: 12px; font-family: inherit; outline: none; color: #1d1d1f; padding: 2px 0; }
+    td.name-cell input { text-align: left; padding-left: 4px; }
+    td input[readonly] { color: #6e6e73; }
+    .del-btn { background: none; border: none; cursor: pointer; color: #8e8e93; font-size: 16px; line-height: 1; padding: 2px; }
+    .del-btn:hover { color: #ff3b30; }
+    .total-row td { font-weight: 600; background: #f2f2f7; font-size: 12px; }
+    .add-row-btn { width: 100%; padding: 8px; background: #f2f2f7; border: 1px dashed #c7c7cc; border-radius: 6px; cursor: pointer; font-size: 12px; color: #6e6e73; margin-top: 6px; font-family: inherit; }
+    .remark-area { width: 100%; border: 1px solid #d1d1d6; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 64px; outline: none; color: #1d1d1f; background: #fff; }
 
-var COMPANY_EMAIL = "your@company.com"; // ← 改成公司收件信箱
-var EMAIL_SUBJECT_PREFIX = "【COVA 簽收單】";
+    /* 照片上傳區 */
+    .photo-upload-area { border: 1.5px dashed #c7c7cc; border-radius: 10px; padding: 18px 12px; text-align: center; cursor: pointer; background: #fafafa; transition: border-color 0.2s; margin-bottom: 8px; }
+    .photo-upload-area:hover { border-color: #1d1d1f; }
+    .photo-upload-area p { font-size: 13px; color: #8e8e93; margin-top: 6px; }
+    .photo-upload-area .icon { font-size: 32px; }
+    #photo-input { display: none; }
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+    .photo-thumb { position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-thumb .remove-photo { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+    .photo-count { font-size: 12px; color: #6e6e73; margin-top: 4px; }
 
-function doPost(e) {
+    .sig-box { border: 1px solid #d1d1d6; border-radius: 6px; background: #fafafa; position: relative; height: 140px; overflow: hidden; }
+    .sig-box canvas { display: block; width: 100%; height: 140px; touch-action: none; cursor: crosshair; }
+    .sig-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 12px; color: #c7c7cc; pointer-events: none; white-space: nowrap; }
+    .sig-clear { position: absolute; top: 8px; right: 10px; font-size: 11px; color: #8e8e93; background: none; border: none; cursor: pointer; text-decoration: underline; font-family: inherit; }
+    .sig-label { font-size: 11px; color: #6e6e73; margin-bottom: 6px; }
+    .footer-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 18px; font-size: 12px; color: #6e6e73; }
+    .footer-row input { border: none; border-bottom: 1px solid #d1d1d6; background: transparent; width: 90px; font-size: 12px; outline: none; font-family: inherit; color: #1d1d1f; }
+    .submit-btn { width: 100%; padding: 14px; background: #1d1d1f; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit; }
+    .submit-btn:active { transform: scale(0.98); opacity: 0.9; }
+    .submit-btn:disabled { background: #8e8e93; cursor: not-allowed; }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+    .overlay.show { display: flex; }
+    .overlay-box { background: #fff; border-radius: 14px; padding: 24px 28px; text-align: center; min-width: 220px; }
+    .spinner { width: 36px; height: 36px; border: 3px solid #e5e5ea; border-top-color: #1d1d1f; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay-box p { font-size: 14px; color: #3a3a3c; }
+    .overlay-box .progress { font-size: 12px; color: #8e8e93; margin-top: 4px; }
+    .success-view { display: none; text-align: center; padding: 4rem 1.5rem; }
+    .check-icon { width: 64px; height: 64px; background: #34c759; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 32px; color: #fff; }
+    .success-view h2 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+    .success-view p { font-size: 14px; color: #6e6e73; line-height: 1.6; }
+    .next-btn { margin-top: 2rem; width: 100%; padding: 12px; border: 1px solid #d1d1d6; border-radius: 10px; background: none; font-size: 14px; cursor: pointer; font-family: inherit; color: #1d1d1f; }
+    .error-msg { display: none; background: #fff2f2; border: 1px solid #ffb3b3; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #ff3b30; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <div class="spinner"></div>
+    <p id="overlay-msg">正在處理中...</p>
+    <p class="progress" id="overlay-progress"></p>
+  </div>
+</div>
+
+<div class="page">
+  <div id="form-view">
+    <div class="brand">
+      <h1>COVA</h1>
+      <p>到府安裝完工簽收單</p>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-cell"><label>客戶</label><span class="val" id="f-customer">—</span></div>
+      <div class="info-cell"><label>聯絡人</label><span class="val" id="f-contact">—</span></div>
+      <div class="info-cell wide"><label>地址</label><span class="val" id="f-address">—</span></div>
+      <div class="info-cell"><label>手機</label><span class="val" id="f-phone">—</span></div>
+      <div class="info-cell"><label>電子郵件</label><span class="val" id="f-email">—</span></div>
+      <div class="info-cell"><label>服務單號</label><span class="val" id="f-svcno">—</span></div>
+      <div class="info-cell"><label>到府時間</label><span class="val" id="f-visit">—</span></div>
+      <div class="info-cell"><label>廠牌</label><span class="val" id="f-brand">—</span></div>
+      <div class="info-cell"><label>料號</label><span class="val" id="f-model">—</span></div>
+      <div class="info-cell"><label>產品類型</label><span class="val" id="f-ptype">—</span></div>
+      <div class="info-cell wide"><label>服務項目</label><span class="val" id="f-stype">—</span></div>
+    </div>
+
+    <div class="section-title">服務明細</div>
+    <table id="detail-table">
+      <thead>
+        <tr>
+          <th style="width:24px">序</th>
+          <th>服務項目</th>
+          <th style="width:56px">材料費</th>
+          <th style="width:46px">工資</th>
+          <th style="width:38px">數量</th>
+          <th style="width:54px">小計</th>
+          <th style="width:26px"></th>
+        </tr>
+      </thead>
+      <tbody id="detail-body"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="5" style="text-align:right;padding-right:10px">總計（含稅）</td>
+          <td id="total-cell">0</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="add-row-btn" onclick="addRow()">＋ 新增項目</button>
+
+    <div class="section-title">備註事項</div>
+    <textarea class="remark-area" id="remark" placeholder="若有其他備註事項，請輸入"></textarea>
+
+    <!-- 照片上傳 -->
+    <div class="section-title">安裝完成照片</div>
+    <div class="photo-upload-area" onclick="document.getElementById('photo-input').click()">
+      <div class="icon">📷</div>
+      <p>點此選擇照片（可多選）</p>
+    </div>
+    <input type="file" id="photo-input" accept="image/*" multiple onchange="handlePhotos(this)">
+    <div class="photo-grid" id="photo-grid"></div>
+    <p class="photo-count" id="photo-count"></p>
+
+    <div class="section-title">客戶簽名</div>
+    <div class="sig-label">本人同意電子簽署的效力比照紙本</div>
+    <div class="sig-box">
+      <canvas id="sigCanvas"></canvas>
+      <span class="sig-hint" id="sig-hint">請用手指在此簽名</span>
+      <button class="sig-clear" onclick="clearSig()">清除</button>
+    </div>
+
+    <div class="footer-row">
+      <span>安裝師傅：<input id="tech-name" placeholder="姓名" autocomplete="off"></span>
+      <span id="today-str"></span>
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
+    <button class="submit-btn" id="submit-btn" onclick="submitForm()">確認簽收並寄送</button>
+  </div>
+
+  <div class="success-view" id="success-view">
+    <div class="check-icon">✓</div>
+    <h2>簽收完成</h2>
+    <p id="success-info"></p>
+    <p style="margin-top:6px;font-size:12px;color:#8e8e93" id="success-photo-info"></p>
+    <p style="margin-top:4px;font-size:12px;color:#8e8e93">PDF 及照片已自動寄送至公司信箱</p>
+    <button class="next-btn" onclick="resetForm()">下一筆案件</button>
+  </div>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+
+// 照片存放
+let photoFiles = [];
+
+function handlePhotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(f => photoFiles.push(f));
+  renderPhotoGrid();
+  input.value = "";
+}
+
+function renderPhotoGrid() {
+  const grid = document.getElementById("photo-grid");
+  const count = document.getElementById("photo-count");
+  grid.innerHTML = "";
+  photoFiles.forEach((f, i) => {
+    const url = URL.createObjectURL(f);
+    const div = document.createElement("div");
+    div.className = "photo-thumb";
+    div.innerHTML = `<img src="${url}"><button class="remove-photo" onclick="removePhoto(${i})">×</button>`;
+    grid.appendChild(div);
+  });
+  count.textContent = photoFiles.length > 0 ? `已選擇 ${photoFiles.length} 張照片` : "";
+}
+
+function removePhoto(idx) {
+  photoFiles.splice(idx, 1);
+  renderPhotoGrid();
+}
+
+// 日期
+const today = new Date();
+const todayStr = today.getFullYear() + " 年 " +
+  String(today.getMonth()+1).padStart(2,"0") + " 月 " +
+  String(today.getDate()).padStart(2,"0") + " 日";
+document.getElementById("today-str").textContent = todayStr;
+
+// Notion 參數帶入
+function getParam(key) {
+  return new URLSearchParams(window.location.search).get(key) || "—";
+}
+function loadCaseInfo() {
+  const map = { "f-customer":"customer","f-contact":"contact","f-address":"address",
+    "f-phone":"phone","f-email":"email","f-svcno":"svcno","f-visit":"visit",
+    "f-brand":"brand","f-model":"model","f-ptype":"ptype","f-stype":"stype" };
+  for (const [id, p] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = getParam(p);
+  }
+}
+
+// 明細表
+let rowIdx = 0;
+function addRow(data) {
+  rowIdx++;
+  const d = data || { name:"", mat:0, labor:0, qty:1 };
+  const sub = ((parseFloat(d.mat)||0) + (parseFloat(d.labor)||0)) * (parseFloat(d.qty)||1);
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${rowIdx}</td>
+    <td class="name-cell"><input class="nm" value="${d.name}" placeholder="項目名稱"></td>
+    <td><input class="mat" type="number" value="${d.mat}" min="0" inputmode="numeric"></td>
+    <td><input class="labor" type="number" value="${d.labor}" min="0" inputmode="numeric"></td>
+    <td><input class="qty" type="number" value="${d.qty}" min="1" inputmode="numeric"></td>
+    <td><input class="sub" type="number" value="${sub}" readonly></td>
+    <td><button class="del-btn" onclick="this.closest('tr').remove();calcTotal()">×</button></td>`;
+  ["mat","labor","qty"].forEach(c => tr.querySelector("."+c).addEventListener("input", ()=>calcRow(tr)));
+  document.getElementById("detail-body").appendChild(tr);
+  calcTotal();
+}
+function calcRow(tr) {
+  const mat = parseFloat(tr.querySelector(".mat").value)||0;
+  const labor = parseFloat(tr.querySelector(".labor").value)||0;
+  const qty = parseFloat(tr.querySelector(".qty").value)||1;
+  tr.querySelector(".sub").value = (mat+labor)*qty;
+  calcTotal();
+}
+function calcTotal() {
+  let t = 0;
+  document.querySelectorAll("#detail-body tr").forEach(tr => { t += parseFloat(tr.querySelector(".sub").value)||0; });
+  document.getElementById("total-cell").textContent = t;
+}
+addRow({ name:"", mat:0, labor:0, qty:1 });
+
+// 簽名
+const canvas = document.getElementById("sigCanvas");
+const ctx = canvas.getContext("2d");
+let hasSig = false, drawing = false;
+function resizeCanvas() {
+  canvas.width = canvas.parentElement.clientWidth;
+  canvas.height = 140;
+  ctx.strokeStyle = "#1a3fbf"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+function pos(e) {
+  const r = canvas.getBoundingClientRect();
+  const s = e.touches ? e.touches[0] : e;
+  return { x:(s.clientX-r.left)*(canvas.width/r.width), y:(s.clientY-r.top)*(canvas.height/r.height) };
+}
+canvas.addEventListener("mousedown", e=>{ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); });
+canvas.addEventListener("mousemove", e=>{ if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); markSig(); });
+canvas.addEventListener("mouseup", ()=>drawing=false);
+canvas.addEventListener("touchstart", e=>{ e.preventDefault(); drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); },{passive:false});
+canvas.addEventListener("touchmove", e=>{ e.preventDefault(); if(!drawing) return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); markSig(); },{passive:false});
+canvas.addEventListener("touchend", ()=>drawing=false);
+function markSig() { hasSig=true; document.getElementById("sig-hint").style.display="none"; }
+function clearSig() { ctx.clearRect(0,0,canvas.width,canvas.height); hasSig=false; document.getElementById("sig-hint").style.display="block"; }
+
+// 錯誤訊息
+function showError(msg) { const el=document.getElementById("error-msg"); el.textContent=msg; el.style.display="block"; }
+function hideError() { document.getElementById("error-msg").style.display="none"; }
+
+// 照片轉 base64
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res({ base64: r.result.split(",")[1], name: file.name, type: file.type });
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// 壓縮照片（限制每張最大 800px，減少 Email 附件大小）
+function compressPhoto(file, maxPx = 1200) {
+  return new Promise((res) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      cv.toBlob(blob => {
+        URL.revokeObjectURL(url);
+        const r2 = new FileReader();
+        r2.onload = () => res({ base64: r2.result.split(",")[1], name: file.name, type: "image/jpeg" });
+        r2.readAsDataURL(blob);
+      }, "image/jpeg", 0.82);
+    };
+    img.src = url;
+  });
+}
+
+// 產出 PDF
+function buildPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:"mm", format:"a4" });
+  const W=210, mL=14, mR=14, cW=W-mL-mR;
+  let y=14;
+  doc.setFont("helvetica","bold"); doc.setFontSize(16);
+  doc.text("COVA", W/2, y, {align:"center"}); y+=7;
+  doc.setFontSize(10); doc.setFont("helvetica","normal");
+  doc.text("Installation Completion Receipt", W/2, y, {align:"center"}); y+=5;
+  doc.setDrawColor(29,29,31); doc.setLineWidth(0.5);
+  doc.line(mL, y, W-mR, y); y+=7;
+
+  const fields = [
+    ["客戶",gv("f-customer")],["聯絡人",gv("f-contact")],
+    ["地址",gv("f-address")],["手機",gv("f-phone")],
+    ["電子郵件",gv("f-email")],["服務單號",gv("f-svcno")],
+    ["到府時間",gv("f-visit")],["廠牌",gv("f-brand")],
+    ["料號",gv("f-model")],["產品類型",gv("f-ptype")],
+    ["服務項目",gv("f-stype")],
+  ];
+  const cH=7, hW=cW/2;
+  let col=0;
+  doc.setDrawColor(180,180,186); doc.setLineWidth(0.3);
+  fields.forEach(f => {
+    const wide = (f[0]==="地址"||f[0]==="服務項目");
+    const fW = wide ? cW : hW;
+    const x = mL + (col===1 ? hW : 0);
+    doc.setFillColor(242,242,247); doc.rect(x,y,fW,cH,"FD");
+    doc.setTextColor(100,100,110); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+    doc.text(f[0], x+2, y+4.5);
+    doc.setFillColor(255,255,255); doc.rect(x,y+cH,fW,cH,"FD");
+    doc.setTextColor(29,29,31); doc.setFont("helvetica","normal");
+    doc.text(String(f[1]).substring(0,40), x+2, y+cH+4.5);
+    if (wide) { y+=cH*2; col=0; }
+    else { if(col===0) col=1; else { y+=cH*2; col=0; } }
+  });
+  if(col===1) y+=cH*2;
+  y+=4;
+
+  doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(100,100,110);
+  doc.text("服務明細", mL, y); y+=4;
+  const cols=[10,60,22,22,18,24];
+  const hdrs=["序","服務項目","材料費","工資","數量","小計"];
+  let x2=mL;
+  doc.setFillColor(242,242,247);
+  cols.forEach((w,i)=>{ doc.rect(x2,y,w,7,"FD"); doc.setTextColor(58,58,60); doc.text(hdrs[i],x2+w/2,y+4.8,{align:"center"}); x2+=w; });
+  y+=7;
+  document.querySelectorAll("#detail-body tr").forEach((tr,idx)=>{
+    const cells=[String(idx+1),tr.querySelector(".nm").value||"—",tr.querySelector(".mat").value||"0",
+      tr.querySelector(".labor").value||"0",tr.querySelector(".qty").value||"1",tr.querySelector(".sub").value||"0"];
+    x2=mL; doc.setFillColor(255,255,255); doc.setTextColor(29,29,31); doc.setFont("helvetica","normal");
+    cols.forEach((w,i)=>{ doc.rect(x2,y,w,7,"FD"); doc.text(cells[i].substring(0,28),x2+w/2,y+4.8,{align:"center"}); x2+=w; });
+    y+=7;
+  });
+  const tCW=cols.slice(0,-1).reduce((a,b)=>a+b,0);
+  doc.setFillColor(242,242,247); doc.setFont("helvetica","bold");
+  doc.rect(mL,y,tCW,7,"FD"); doc.text("總計（含稅）",mL+tCW-2,y+4.8,{align:"right"});
+  doc.rect(mL+tCW,y,cols[5],7,"FD"); doc.text(document.getElementById("total-cell").textContent,mL+tCW+cols[5]/2,y+4.8,{align:"center"});
+  y+=12;
+
+  const remark = document.getElementById("remark").value;
+  if(remark.trim()){ doc.setFont("helvetica","bold").setFontSize(8).setTextColor(100,100,110);
+    doc.text("備註事項",mL,y); y+=5; doc.setFont("helvetica","normal").setTextColor(29,29,31);
+    const lines=doc.splitTextToSize(remark,cW); doc.text(lines,mL,y); y+=lines.length*5+4; }
+
+  doc.setFont("helvetica","bold").setFontSize(8).setTextColor(100,100,110);
+  doc.text("客戶簽名（本人同意電子簽署的效力比照紙本）",mL,y); y+=5;
+  doc.addImage(canvas.toDataURL("image/png"),"PNG",mL,y,80,30); y+=35;
+  doc.setFont("helvetica","normal").setFontSize(9).setTextColor(29,29,31);
+  doc.text("安裝師傅："+(document.getElementById("tech-name").value||"—"),mL,y);
+  doc.text(todayStr,W-mR,y,{align:"right"});
+  return doc;
+}
+
+function gv(id) { return document.getElementById(id)?.textContent?.trim()||"—"; }
+
+// 送出
+async function submitForm() {
+  hideError();
+  if (!hasSig) { showError("請讓客戶完成簽名後再送出"); return; }
+  const tech = document.getElementById("tech-name").value.trim();
+  if (!tech) { showError("請填寫安裝師傅姓名"); return; }
+
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = true;
+  const overlay = document.getElementById("overlay");
+  const msg = document.getElementById("overlay-msg");
+  const prog = document.getElementById("overlay-progress");
+  overlay.classList.add("show");
+
   try {
-    var payload = JSON.parse(e.postData.contents);
+    msg.textContent = "正在產出 PDF...";
+    prog.textContent = "";
+    const pdfDoc = buildPDF();
+    const pdfBase64 = pdfDoc.output("datauristring").split(",")[1];
 
-    var pdfBase64 = payload.pdfBase64;
-    var filename  = payload.filename  || "簽收單.pdf";
-    var photos    = payload.photos    || []; // 照片陣列
-    var svcno     = payload.svcno     || "—";
-    var customer  = payload.customer  || "—";
-    var tech      = payload.tech      || "—";
-    var date      = payload.date      || "—";
-    var total     = payload.total     || "0";
+    msg.textContent = "正在處理照片...";
+    const photos = [];
+    for (let i = 0; i < photoFiles.length; i++) {
+      prog.textContent = `照片 ${i+1} / ${photoFiles.length}`;
+      const compressed = await compressPhoto(photoFiles[i]);
+      photos.push(compressed);
+    }
 
-    // PDF 附件
-    var pdfBlob = Utilities.newBlob(
-      Utilities.base64Decode(pdfBase64), "application/pdf", filename
-    );
+    msg.textContent = "正在寄送，請稍候...";
+    prog.textContent = photoFiles.length > 0 ? `共 ${photos.length} 張照片` : "";
 
-    // 照片附件（逐一轉換）
-    var photoBlobs = photos.map(function(p, i) {
-      var ext = p.name.split(".").pop() || "jpg";
-      var photoName = svcno + "_安裝照片_" + String(i+1).padStart(2,"0") + "." + ext;
-      return Utilities.newBlob(
-        Utilities.base64Decode(p.base64), p.type || "image/jpeg", photoName
-      );
-    });
+    const svcno = gv("f-svcno");
+    const customer = gv("f-customer");
+    const payload = {
+      pdfBase64,
+      filename: `COVA_簽收單_${svcno}_${customer}.pdf`,
+      photos,
+      svcno, customer, tech,
+      date: todayStr,
+      total: document.getElementById("total-cell").textContent,
+    };
 
-    // 所有附件合併
-    var allAttachments = [pdfBlob].concat(photoBlobs);
+    const resp = await fetch(GAS_URL, { method:"POST", body: JSON.stringify(payload) });
+    const result = await resp.json();
 
-    // Email 內文
-    var subject = EMAIL_SUBJECT_PREFIX + svcno + "｜" + customer;
-    var body =
-      "您好，\n\n" +
-      "以下為本次安裝簽收紀錄，PDF 簽收單及安裝照片已附於此郵件。\n\n" +
-      "━━━━━━━━━━━━━━━━━━━━\n" +
-      "服務單號：" + svcno    + "\n" +
-      "客戶姓名：" + customer  + "\n" +
-      "安裝師傅：" + tech      + "\n" +
-      "安裝日期：" + date      + "\n" +
-      "總計金額：NT$ " + total + "\n" +
-      "安裝照片：" + photos.length + " 張\n" +
-      "━━━━━━━━━━━━━━━━━━━━\n\n" +
-      "此郵件由系統自動發送，請勿回覆。\n" +
-      "COVA";
-
-    GmailApp.sendEmail(COMPANY_EMAIL, subject, body, {
-      attachments: allAttachments,
-      name: "COVA 簽收系統"
-    });
-
-    // （選用）寫入 Google 試算表紀錄
-    // logToSheet(svcno, customer, tech, date, total, photos.length);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "ok" }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "error", message: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    if (result.status === "ok") {
+      document.getElementById("form-view").style.display = "none";
+      document.getElementById("success-view").style.display = "block";
+      document.getElementById("success-info").textContent = `服務單號 ${svcno}｜${customer}｜NT$ ${payload.total}`;
+      document.getElementById("success-photo-info").textContent = photos.length > 0 ? `附件：PDF 簽收單 + ${photos.length} 張安裝照片` : "附件：PDF 簽收單";
+    } else {
+      throw new Error(result.message || "寄送失敗");
+    }
+  } catch(e) {
+    showError("寄送失敗，請檢查網路或聯絡管理員。（" + e.message + "）");
+  } finally {
+    btn.disabled = false;
+    overlay.classList.remove("show");
   }
 }
 
-function doGet(e) {
-  return ContentService
-    .createTextOutput("COVA 簽收系統運作中 ✓")
-    .setMimeType(ContentService.MimeType.TEXT);
+function resetForm() {
+  document.getElementById("form-view").style.display = "block";
+  document.getElementById("success-view").style.display = "none";
+  clearSig();
+  document.getElementById("tech-name").value = "";
+  document.getElementById("remark").value = "";
+  document.getElementById("detail-body").innerHTML = "";
+  rowIdx = 0; photoFiles = [];
+  document.getElementById("photo-grid").innerHTML = "";
+  document.getElementById("photo-count").textContent = "";
+  addRow({ name:"", mat:0, labor:0, qty:1 });
+  hideError();
+  window.scrollTo(0,0);
 }
 
-// =============================================
-// （選用）寫入 Google 試算表
-// =============================================
-/*
-var SHEET_ID = "your_spreadsheet_id_here";
-function logToSheet(svcno, customer, tech, date, total, photoCount) {
-  var ss = SpreadsheetApp.openById(SHEET_ID);
-  var sheet = ss.getSheetByName("簽收紀錄") || ss.insertSheet("簽收紀錄");
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["時間戳記","服務單號","客戶","師傅","日期","總計","照片數量"]);
-  }
-  sheet.appendRow([new Date(), svcno, customer, tech, date, total, photoCount]);
-}
-*/
+loadCaseInfo();
+</script>
+</body>
+</html>
