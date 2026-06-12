@@ -87,17 +87,13 @@
     </div>
 
     <div class="info-grid">
-      <div class="info-cell"><label>客戶</label><span class="val" id="f-customer">—</span></div>
-      <div class="info-cell"><label>聯絡人</label><span class="val" id="f-contact">—</span></div>
-      <div class="info-cell wide"><label>地址</label><span class="val" id="f-address">—</span></div>
-      <div class="info-cell"><label>手機</label><span class="val" id="f-phone">—</span></div>
-      <div class="info-cell"><label>電子郵件</label><span class="val" id="f-email">—</span></div>
-      <div class="info-cell"><label>服務單號</label><span class="val" id="f-svcno">—</span></div>
-      <div class="info-cell"><label>到府時間</label><span class="val" id="f-visit">—</span></div>
-      <div class="info-cell"><label>廠牌</label><span class="val" id="f-brand">—</span></div>
-      <div class="info-cell"><label>料號</label><span class="val" id="f-model">—</span></div>
-      <div class="info-cell"><label>產品類型</label><span class="val" id="f-ptype">—</span></div>
-      <div class="info-cell wide"><label>服務項目</label><span class="val" id="f-stype">—</span></div>
+      <div class="info-cell wide"><label>客戶姓名+安裝地區</label><span class="val" id="f-customer">—</span></div>
+      <div class="info-cell"><label>連絡電話</label><span class="val" id="f-phone">—</span></div>
+      <div class="info-cell"><label>預約安裝日期</label><span class="val" id="f-visit">—</span></div>
+      <div class="info-cell wide"><label>安裝地址</label><span class="val" id="f-address">—</span></div>
+      <div class="info-cell"><label>購買機型</label><span class="val" id="f-model">—</span></div>
+      <div class="info-cell"><label>安裝家電類型</label><span class="val" id="f-ptype">—</span></div>
+      <div class="info-cell wide"><label>需要攜帶</label><span class="val" id="f-stype">—</span></div>
     </div>
 
     <div class="section-title">服務明細</div>
@@ -165,7 +161,7 @@
 </div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzVxWwla3jrXHJWun-w1JD0duFUuXeu-lagDT-x_i6abWHojP0dfl3xUPSXco8amKtG2A/exec";
+const GAS_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
 
 // 照片存放
 let photoFiles = [];
@@ -208,9 +204,8 @@ function getParam(key) {
   return new URLSearchParams(window.location.search).get(key) || "—";
 }
 function loadCaseInfo() {
-  const map = { "f-customer":"customer","f-contact":"contact","f-address":"address",
-    "f-phone":"phone","f-email":"email","f-svcno":"svcno","f-visit":"visit",
-    "f-brand":"brand","f-model":"model","f-ptype":"ptype","f-stype":"stype" };
+  const map = { "f-customer":"customer","f-phone":"phone","f-address":"address",
+    "f-visit":"visit","f-model":"model","f-ptype":"ptype","f-stype":"stype" };
   for (const [id, p] of Object.entries(map)) {
     const el = document.getElementById(id);
     if (el) el.textContent = getParam(p);
@@ -327,18 +322,17 @@ function buildPDF() {
   doc.line(mL, y, W-mR, y); y+=7;
 
   const fields = [
-    ["客戶",gv("f-customer")],["聯絡人",gv("f-contact")],
-    ["地址",gv("f-address")],["手機",gv("f-phone")],
-    ["電子郵件",gv("f-email")],["服務單號",gv("f-svcno")],
-    ["到府時間",gv("f-visit")],["廠牌",gv("f-brand")],
-    ["料號",gv("f-model")],["產品類型",gv("f-ptype")],
-    ["服務項目",gv("f-stype")],
+    ["客戶姓名+安裝地區",gv("f-customer")],
+    ["連絡電話",gv("f-phone")],["預約安裝日期",gv("f-visit")],
+    ["安裝地址",gv("f-address")],
+    ["購買機型",gv("f-model")],["安裝家電類型",gv("f-ptype")],
+    ["需要攜帶",gv("f-stype")],
   ];
   const cH=7, hW=cW/2;
   let col=0;
   doc.setDrawColor(180,180,186); doc.setLineWidth(0.3);
   fields.forEach(f => {
-    const wide = (f[0]==="地址"||f[0]==="服務項目");
+    const wide = (f[0]==="客戶姓名+安裝地區"||f[0]==="安裝地址"||f[0]==="需要攜帶");
     const fW = wide ? cW : hW;
     const x = mL + (col===1 ? hW : 0);
     doc.setFillColor(242,242,247); doc.rect(x,y,fW,cH,"FD");
@@ -421,13 +415,12 @@ async function submitForm() {
     msg.textContent = "正在寄送，請稍候...";
     prog.textContent = photoFiles.length > 0 ? `共 ${photos.length} 張照片` : "";
 
-    const svcno = gv("f-svcno");
     const customer = gv("f-customer");
     const payload = {
       pdfBase64,
-      filename: `COVA_簽收單_${svcno}_${customer}.pdf`,
+      filename: `COVA_簽收單_${customer}_${todayStr.replace(/ /g,"")}.pdf`,
       photos,
-      svcno, customer, tech,
+      svcno: customer, customer, tech,
       date: todayStr,
       total: document.getElementById("total-cell").textContent,
     };
