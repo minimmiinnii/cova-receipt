@@ -16,32 +16,45 @@
     .sec-title{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;padding:12px 14px 6px}
     .dl{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-top:.5px solid #f2f2f7}
     .dl:first-of-type{border-top:none}
-    .dk{font-size:13px;color:#6e6e73;min-width:80px}
+    .dk{font-size:13px;color:#6e6e73;min-width:90px}
     .dv{font-size:13px;text-align:right;flex:1;word-break:break-all}
     .badge{font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500}
     .b-bl{background:#E6F1FB;color:#0C447C}
     .b-gr{background:#EAF3DE;color:#27500A}
     .b-am{background:#FAEEDA;color:#633806}
     .b-gy{background:#f2f2f7;color:#6e6e73}
-    .action-row{display:flex;gap:10px;padding:0 16px;margin-top:4px}
+    .action-row{display:flex;gap:10px;padding:0 16px;margin-top:12px}
     .abtn{flex:1;padding:12px;border:.5px solid #d1d1d6;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;color:#1d1d1f;font-family:inherit;text-align:center;text-decoration:none;display:block}
     .abtn.dark{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
+    .abtn.edit-btn{background:#f5f5f7;border-color:#d1d1d6}
     .status-row{display:flex;gap:6px;padding:8px 14px;flex-wrap:wrap}
     .stbtn{padding:6px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;background:#fff;color:#3a3a3c;font-family:inherit}
     .stbtn.on{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
-    .save-bar{padding:12px 16px;background:#fff;border-top:.5px solid #e5e5ea;margin-top:8px}
-    .save-btn{width:100%;padding:12px;background:#1d1d1f;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+    .save-bar{padding:12px 16px;background:#fff;border-top:.5px solid #e5e5ea;margin-top:8px;display:flex;gap:10px}
+    .save-btn{flex:1;padding:12px;background:#1d1d1f;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+    .save-btn.cancel{background:#fff;color:#1d1d1f;border:.5px solid #d1d1d6}
     .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;display:none;z-index:99}
     a.abtn{display:flex;align-items:center;justify-content:center;gap:6px}
+    /* 編輯模式 */
+    .edit-section{background:#fff;margin:12px 16px;border-radius:12px;border:.5px solid #e5e5ea;overflow:hidden;padding:12px 14px}
+    .edit-field{margin-bottom:12px}
+    .edit-field label{display:block;font-size:11px;font-weight:500;color:#6e6e73;margin-bottom:4px}
+    .edit-field input,.edit-field select,.edit-field textarea{width:100%;padding:9px 11px;border:.5px solid #d1d1d6;border-radius:8px;font-size:13px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none;appearance:none;-webkit-appearance:none}
+    .edit-field textarea{resize:vertical;min-height:60px}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .chip-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+    .chip{padding:5px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;color:#3a3a3c;background:#fff}
+    .chip.on{background:#1d1d1f;border-color:#1d1d1f;color:#fff}
+    .edit-sec-title{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;margin-bottom:10px}
   </style>
 </head>
 <body>
 <div class="topbar">
   <div class="t1">COVA SYSTEM</div>
-  <div class="t2">案件詳情</div>
+  <div class="t2" id="page-title">案件詳情</div>
 </div>
-<div class="back-bar" onclick="history.back()">
-  ← <span>返回列表</span>
+<div class="back-bar" onclick="handleBack()">
+  ← <span id="back-label">返回列表</span>
 </div>
 
 <div id="content">
@@ -57,6 +70,15 @@ if (!user) window.location.href = "login.html";
 
 const rowNum = sessionStorage.getItem("cova_row");
 let caseData = null;
+let editMode = false;
+
+function handleBack() {
+  if (editMode) {
+    exitEdit();
+  } else {
+    history.back();
+  }
+}
 
 async function load() {
   try {
@@ -67,7 +89,7 @@ async function load() {
     const r = await resp.json();
     if (r.status === "ok") {
       caseData = r.cases.find(c => String(c._row) === String(rowNum));
-      if (caseData) render();
+      if (caseData) renderDetail();
       else document.getElementById("content").innerHTML = '<div style="text-align:center;padding:3rem;color:#8e8e93">找不到案件</div>';
     }
   } catch(e) {
@@ -75,18 +97,21 @@ async function load() {
   }
 }
 
-function render() {
+function renderDetail() {
+  editMode = false;
+  document.getElementById("page-title").textContent = "案件詳情";
+  document.getElementById("back-label").textContent = "返回列表";
   const c = caseData;
   const s = c["案件進度"] || "聯繫中";
-  const bc = s==="待安裝"?"b-bl":s==="完成"?"b-gr":s==="聯繫中"?"b-am":"b-gy";
   const statuses = ["聯繫中","場勘","待安裝","安裝中","完成"];
   const receiptUrl = `index.html?customer=${encodeURIComponent(c["客戶姓名+安裝地區"]||"")}&phone=${encodeURIComponent(c["連絡電話"]||"")}&address=${encodeURIComponent(c["安裝地址"]||"")}&visit=${encodeURIComponent(c["預約安裝日期"]||"")}&ptype=${encodeURIComponent(c["安裝家電類型"]||"")}&stype=${encodeURIComponent(c["需要攜帶"]||"")}`;
   const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(c["安裝地址"]||"")}`;
 
   document.getElementById("content").innerHTML = `
-    <div class="action-row" style="margin-top:12px">
+    <div class="action-row">
       <a class="abtn dark" href="${receiptUrl}">填簽收單</a>
       <a class="abtn" href="${mapUrl}" target="_blank">導航</a>
+      <button class="abtn edit-btn" onclick="enterEdit()">編輯</button>
     </div>
 
     <div class="section">
@@ -95,6 +120,7 @@ function render() {
       <div class="dl"><span class="dk">電話</span><span class="dv"><a href="tel:${c["連絡電話"]||""}" style="color:#185FA5">${c["連絡電話"]||"—"}</a></span></div>
       <div class="dl"><span class="dk">地址</span><span class="dv">${c["安裝地址"]||"—"}</span></div>
       <div class="dl"><span class="dk">電梯</span><span class="dv">${c["電梯"]||"—"}</span></div>
+      <div class="dl"><span class="dk">客源管道</span><span class="dv">${c["客源管道"]||"—"}</span></div>
     </div>
 
     <div class="section">
@@ -120,6 +146,123 @@ function render() {
       <button class="save-btn" onclick="saveStatus()">儲存進度</button>
     </div>
   `;
+}
+
+function enterEdit() {
+  editMode = true;
+  document.getElementById("page-title").textContent = "編輯案件";
+  document.getElementById("back-label").textContent = "取消編輯";
+  const c = caseData;
+  const appliances = ["洗碗機","洗衣機","乾衣機","冰箱","電視","其他"];
+  const currentAppliances = (c["安裝家電類型"]||"").split("、");
+
+  document.getElementById("content").innerHTML = `
+    <div class="edit-section">
+      <div class="edit-sec-title">客戶資訊</div>
+      <div class="edit-field"><label>客戶姓名 + 安裝地區</label><input id="e-name" value="${c["客戶姓名+安裝地區"]||""}"></div>
+      <div class="edit-field"><label>連絡電話</label><input id="e-phone" type="tel" value="${c["連絡電話"]||""}"></div>
+      <div class="edit-field"><label>安裝地址</label><input id="e-address" value="${c["安裝地址"]||""}"></div>
+      <div class="row2">
+        <div class="edit-field"><label>電梯</label>
+          <select id="e-elevator">
+            <option value="">請選擇</option>
+            <option${c["電梯"]==="有電梯"?" selected":""}>有電梯</option>
+            <option${c["電梯"]==="沒有電梯"?" selected":""}>沒有電梯</option>
+          </select>
+        </div>
+        <div class="edit-field"><label>客源管道</label>
+          <select id="e-source">
+            <option value="">請選擇</option>
+            ${["新竹簡單官網","蝦皮其他","蝦皮BOSCH","Yahoo","PChome","MOMO"].map(s=>`<option${c["客源管道"]===s?" selected":""}>${s}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-section">
+      <div class="edit-sec-title">安裝資訊</div>
+      <div class="edit-field"><label>安裝家電類型</label>
+        <div class="chip-group" id="e-appliance">
+          ${appliances.map(a=>`<div class="chip${currentAppliances.includes(a)?" on":""}" data-v="${a}">${a}</div>`).join("")}
+        </div>
+      </div>
+      <div class="edit-field"><label>預約安裝日期</label><input id="e-date" type="date" value="${c["預約安裝日期"]||""}"></div>
+      <div class="edit-field"><label>需要攜帶</label><input id="e-items" value="${c["需要攜帶"]||""}"></div>
+      <div class="edit-field"><label>非標準安裝收費</label><input id="e-fee" value="${c["非標準安裝收費金額"]||""}" inputmode="numeric"></div>
+    </div>
+
+    <div class="edit-section">
+      <div class="edit-sec-title">派工資訊</div>
+      <div class="row2">
+        <div class="edit-field"><label>派工師傅</label>
+          <select id="e-tech">
+            <option value="">未派工</option>
+            ${["呂師傅","阿炮師傅"].map(t=>`<option${c["派工師傅"]===t?" selected":""}>${t}</option>`).join("")}
+          </select>
+        </div>
+        <div class="edit-field"><label>案件進度</label>
+          <select id="e-status">
+            ${["聯繫中","場勘","待安裝","安裝中","完成"].map(s=>`<option${c["案件進度"]===s?" selected":""}>${s}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="edit-section">
+      <div class="edit-sec-title">其他</div>
+      <div class="edit-field"><label>Google 相簿連結</label><input id="e-album" type="url" value="${c["Google相簿連結"]||""}"></div>
+      <div class="edit-field"><label>備註 / 客訴紀錄</label><textarea id="e-note">${c["現場狀況與客訴紀錄"]||""}</textarea></div>
+    </div>
+
+    <div class="save-bar">
+      <button class="save-btn cancel" onclick="exitEdit()">取消</button>
+      <button class="save-btn" onclick="saveEdit()">儲存變更</button>
+    </div>
+  `;
+
+  document.querySelectorAll("#e-appliance .chip").forEach(chip => {
+    chip.addEventListener("click", () => chip.classList.toggle("on"));
+  });
+}
+
+function exitEdit() {
+  renderDetail();
+}
+
+async function saveEdit() {
+  const appliances = [...document.querySelectorAll("#e-appliance .chip.on")].map(c=>c.dataset.v);
+  const data = {
+    "客戶姓名+安裝地區": document.getElementById("e-name").value.trim(),
+    "連絡電話": document.getElementById("e-phone").value.trim(),
+    "安裝地址": document.getElementById("e-address").value.trim(),
+    "電梯": document.getElementById("e-elevator").value,
+    "客源管道": document.getElementById("e-source").value,
+    "安裝家電類型": appliances.join("、"),
+    "預約安裝日期": document.getElementById("e-date").value,
+    "需要攜帶": document.getElementById("e-items").value.trim(),
+    "非標準安裝收費金額": document.getElementById("e-fee").value.trim(),
+    "派工師傅": document.getElementById("e-tech").value,
+    "案件進度": document.getElementById("e-status").value,
+    "Google相簿連結": document.getElementById("e-album").value.trim(),
+    "現場狀況與客訴紀錄": document.getElementById("e-note").value.trim(),
+  };
+
+  try {
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "updateCase", rowNum: parseInt(rowNum), data })
+    });
+    const r = await resp.json();
+    if (r.status === "ok") {
+      Object.assign(caseData, data);
+      showToast("已儲存變更");
+      setTimeout(() => renderDetail(), 1000);
+    } else {
+      showToast("儲存失敗");
+    }
+  } catch(e) {
+    showToast("儲存失敗");
+  }
 }
 
 function selectStatus(el, st) {
