@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>COVA 管理者</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;font-size:14px;background:#f5f5f7;color:#1d1d1f;min-height:100vh}
+    .topbar{background:#1d1d1f;color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:10}
+    .topbar .t1{font-size:10px;opacity:.5;letter-spacing:2px}
+    .topbar .t2{font-size:18px;font-weight:500;margin-top:2px}
+    .topbar .t3{font-size:11px;opacity:.5;margin-top:1px}
+    .tab-bar{display:flex;background:#fff;border-bottom:.5px solid #e5e5ea;position:sticky;top:62px;z-index:9}
+    .tab{flex:1;padding:10px 4px;text-align:center;font-size:12px;font-weight:500;color:#8e8e93;cursor:pointer}
+    .tab.on{color:#1d1d1f;border-bottom:1.5px solid #1d1d1f}
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:12px 16px}
+    .sc{background:#fff;border-radius:10px;padding:12px 14px;border:.5px solid #e5e5ea}
+    .sc .n{font-size:24px;font-weight:500}
+    .sc .l{font-size:11px;color:#8e8e93;margin-top:2px}
+    .n.bl{color:#185FA5}.n.gr{color:#3B6D11}.n.am{color:#854F0B}.n.rd{color:#A32D2D}
+    .sec-hd{display:flex;justify-content:space-between;align-items:center;padding:4px 16px 8px}
+    .sec-hd span{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase}
+    .filter-row{display:flex;gap:6px;padding:0 16px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .filter-row::-webkit-scrollbar{display:none}
+    .fc{padding:5px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;white-space:nowrap;color:#3a3a3c;background:#fff}
+    .fc.on{background:#1d1d1f;border-color:#1d1d1f;color:#fff}
+    .case-card{margin:0 16px 10px;background:#fff;border:.5px solid #e5e5ea;border-radius:12px;padding:12px 14px;cursor:pointer}
+    .case-card:active{background:#f5f5f7}
+    .ct{display:flex;justify-content:space-between;align-items:flex-start}
+    .cn{font-size:14px;font-weight:500}
+    .badge{font-size:10px;padding:3px 8px;border-radius:10px;font-weight:500;white-space:nowrap}
+    .b-bl{background:#E6F1FB;color:#0C447C}
+    .b-gr{background:#EAF3DE;color:#27500A}
+    .b-am{background:#FAEEDA;color:#633806}
+    .b-gy{background:#f2f2f7;color:#6e6e73}
+    .ci{font-size:11px;color:#6e6e73;margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+    .ci span{display:flex;align-items:center;gap:3px}
+    .fab{position:fixed;bottom:24px;right:20px;width:52px;height:52px;background:#1d1d1f;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:26px;border:none;cursor:pointer;text-decoration:none;line-height:1}
+    .empty{text-align:center;padding:3rem 1rem;color:#8e8e93;font-size:14px}
+    .logout-bar{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-top:.5px solid #e5e5ea;margin-top:8px;background:#fff}
+    .logout-btn{font-size:12px;color:#6e6e73;background:none;border:.5px solid #d1d1d6;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit}
+    .search-wrap{padding:8px 16px}
+    .search-wrap input{width:100%;padding:8px 12px;border:.5px solid #d1d1d6;border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#1d1d1f}
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="t1">COVA SYSTEM</div>
+  <div class="t2">案件總覽</div>
+  <div class="t3" id="user-label"></div>
+</div>
+<div class="tab-bar">
+  <div class="tab on" onclick="setTab('all',this)">全部</div>
+  <div class="tab" onclick="setTab('pending',this)">待安裝</div>
+  <div class="tab" onclick="setTab('done',this)">完成</div>
+  <div class="tab" onclick="setTab('contact',this)">聯繫中</div>
+</div>
+
+<div class="stats">
+  <div class="sc"><div class="n bl" id="n1">—</div><div class="l">全部案件</div></div>
+  <div class="sc"><div class="n gr" id="n2">—</div><div class="l">待安裝</div></div>
+  <div class="sc"><div class="n am" id="n3">—</div><div class="l">聯繫中</div></div>
+  <div class="sc"><div class="n rd" id="n4">—</div><div class="l">已完成</div></div>
+</div>
+
+<div class="search-wrap">
+  <input type="text" id="search" placeholder="搜尋客戶姓名、地區..." oninput="renderCases()">
+</div>
+
+<div class="filter-row">
+  <div class="fc on" onclick="setTech('',this)">全部師傅</div>
+  <div class="fc" onclick="setTech('呂師傅',this)">呂師傅</div>
+  <div class="fc" onclick="setTech('阿炮師傅',this)">阿炮師傅</div>
+</div>
+
+<div class="sec-hd"><span>案件列表</span></div>
+<div id="case-list"></div>
+
+<div class="logout-bar">
+  <span style="font-size:11px;color:#c7c7cc">COVA v1.0</span>
+  <button class="logout-btn" onclick="logout()">登出</button>
+</div>
+
+<a class="fab" href="case-new.html" title="新增案件" aria-label="新增案件">＋</a>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxFG9-gSqOlPTwRFdkc6MtRdU92KqDGDCp1jDu5m-RdzXT2Pxx8epjEmtBfa3X24ej0Yw/exec";
+let allCases = [];
+let curTab = 'all';
+let curTech = '';
+
+const user = JSON.parse(sessionStorage.getItem("cova_user") || "null");
+if (!user) { window.location.href = "login.html"; }
+else { document.getElementById("user-label").textContent = user.name + " · 管理者"; }
+
+async function loadCases() {
+  try {
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "getCases", role: user.role, name: user.name })
+    });
+    const r = await resp.json();
+    if (r.status === "ok") {
+      allCases = r.cases;
+      updateStats();
+      renderCases();
+    }
+  } catch(e) {
+    document.getElementById("case-list").innerHTML = '<div class="empty">載入失敗，請重新整理</div>';
+  }
+}
+
+function updateStats() {
+  document.getElementById("n1").textContent = allCases.length;
+  document.getElementById("n2").textContent = allCases.filter(c=>c["案件進度"]==="待安裝").length;
+  document.getElementById("n3").textContent = allCases.filter(c=>c["案件進度"]==="聯繫中").length;
+  document.getElementById("n4").textContent = allCases.filter(c=>c["案件進度"]==="完成").length;
+}
+
+function setTab(tab, el) {
+  curTab = tab;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));
+  el.classList.add("on");
+  renderCases();
+}
+
+function setTech(tech, el) {
+  curTech = tech;
+  document.querySelectorAll(".fc").forEach(f=>f.classList.remove("on"));
+  el.classList.add("on");
+  renderCases();
+}
+
+function renderCases() {
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  let list = allCases;
+  if (curTab === "pending") list = list.filter(c=>c["案件進度"]==="待安裝");
+  else if (curTab === "done") list = list.filter(c=>c["案件進度"]==="完成");
+  else if (curTab === "contact") list = list.filter(c=>c["案件進度"]==="聯繫中");
+  if (curTech) list = list.filter(c=>c["派工師傅"]===curTech);
+  if (q) list = list.filter(c=>(c["客戶姓名+安裝地區"]||"").toLowerCase().includes(q));
+
+  const el = document.getElementById("case-list");
+  if (!list.length) { el.innerHTML = '<div class="empty">沒有符合的案件</div>'; return; }
+  el.innerHTML = list.map((c,i) => {
+    const s = c["案件進度"] || "聯繫中";
+    const bc = s==="待安裝"?"b-bl":s==="完成"?"b-gr":s==="聯繫中"?"b-am":"b-gy";
+    const date = c["預約安裝日期"] || "未定";
+    return `<div class="case-card" onclick="openDetail(${c._row})">
+      <div class="ct">
+        <div class="cn">${c["客戶姓名+安裝地區"]||"—"}</div>
+        <div class="badge ${bc}">${s}</div>
+      </div>
+      <div class="ci">
+        <span>📅 ${date}</span>
+        <span>🔧 ${c["安裝家電類型"]||"—"}</span>
+        <span>👷 ${c["派工師傅"]||"未派工"}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openDetail(row) {
+  sessionStorage.setItem("cova_row", row);
+  window.location.href = "case-detail.html";
+}
+
+function logout() {
+  sessionStorage.clear();
+  window.location.href = "login.html";
+}
+
+loadCases();
+</script>
+</body>
+</html>

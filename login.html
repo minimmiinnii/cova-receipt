@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>COVA 登入</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;background:#1d1d1f;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+    .card{background:#fff;border-radius:18px;padding:2.5rem 2rem;width:100%;max-width:360px}
+    .logo{text-align:center;margin-bottom:2rem}
+    .logo h1{font-size:28px;font-weight:600;letter-spacing:4px;color:#1d1d1f}
+    .logo p{font-size:12px;color:#8e8e93;margin-top:4px;letter-spacing:1px}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-size:11px;font-weight:500;color:#6e6e73;margin-bottom:5px}
+    .field input{width:100%;padding:12px 14px;border:1px solid #d1d1d6;border-radius:10px;font-size:15px;font-family:inherit;color:#1d1d1f;outline:none;transition:border-color .15s}
+    .field input:focus{border-color:#1d1d1f}
+    .btn{width:100%;padding:13px;background:#1d1d1f;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:8px}
+    .btn:disabled{background:#8e8e93;cursor:not-allowed}
+    .err{display:none;background:#fff2f2;border:1px solid #ffb3b3;border-radius:8px;padding:10px 12px;font-size:13px;color:#ff3b30;margin-top:12px;text-align:center}
+    .spinner{display:none;text-align:center;margin-top:12px}
+    .sp{width:24px;height:24px;border:2px solid #e5e5ea;border-top-color:#1d1d1f;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .ver{text-align:center;font-size:11px;color:#c7c7cc;margin-top:2rem}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>COVA</h1>
+    <p>安裝案件管理系統</p>
+  </div>
+  <div class="field">
+    <label>帳號</label>
+    <input type="text" id="u" placeholder="請輸入帳號" autocomplete="username" autocapitalize="none">
+  </div>
+  <div class="field">
+    <label>密碼</label>
+    <input type="password" id="p" placeholder="請輸入密碼" autocomplete="current-password">
+  </div>
+  <button class="btn" id="btn" onclick="doLogin()">登入</button>
+  <div class="err" id="err"></div>
+  <div class="spinner" id="sp"><div class="sp"></div></div>
+  <div class="ver">COVA System v1.0</div>
+</div>
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxFG9-gSqOlPTwRFdkc6MtRdU92KqDGDCp1jDu5m-RdzXT2Pxx8epjEmtBfa3X24ej0Yw/exec";
+document.getElementById("p").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+document.getElementById("u").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("p").focus()});
+async function doLogin(){
+  const u=document.getElementById("u").value.trim();
+  const p=document.getElementById("p").value;
+  const err=document.getElementById("err");
+  if(!u||!p){err.textContent="請輸入帳號和密碼";err.style.display="block";return}
+  document.getElementById("btn").disabled=true;
+  err.style.display="none";
+  document.getElementById("sp").style.display="block";
+  try{
+    const resp=await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"login",username:u,password:p})});
+    const r=await resp.json();
+    if(r.status==="ok"){
+      sessionStorage.setItem("cova_user",JSON.stringify({username:r.username,name:r.name,role:r.role}));
+      window.location.href=r.role==="tech"?"schedule.html":"dashboard.html";
+    }else{
+      err.textContent="帳號或密碼錯誤，請重試";
+      err.style.display="block";
+      document.getElementById("p").value="";
+    }
+  }catch(e){
+    err.textContent="連線失敗，請檢查網路後重試";
+    err.style.display="block";
+  }finally{
+    document.getElementById("btn").disabled=false;
+    document.getElementById("sp").style.display="none";
+  }
+}
+</script>
+</body>
+</html>

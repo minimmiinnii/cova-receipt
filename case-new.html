@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>COVA 新增案件</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;font-size:14px;background:#f5f5f7;color:#1d1d1f;min-height:100vh}
+    .topbar{background:#1d1d1f;color:#fff;padding:14px 16px 12px}
+    .topbar .t1{font-size:10px;opacity:.5;letter-spacing:2px}
+    .topbar .t2{font-size:18px;font-weight:500;margin-top:2px}
+    .back-bar{background:#fff;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:.5px solid #e5e5ea;cursor:pointer}
+    .back-bar span{font-size:13px;color:#6e6e73}
+    .section{background:#fff;margin:12px 16px;border-radius:12px;border:.5px solid #e5e5ea;overflow:hidden;padding:12px 14px}
+    .sec-title{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;margin-bottom:10px}
+    .field{margin-bottom:12px}
+    .field label{display:block;font-size:11px;font-weight:500;color:#6e6e73;margin-bottom:4px}
+    .field label .req{color:#ff3b30;margin-left:2px}
+    .field input,.field select,.field textarea{width:100%;padding:9px 11px;border:.5px solid #d1d1d6;border-radius:8px;font-size:13px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none;appearance:none;-webkit-appearance:none}
+    .field textarea{resize:vertical;min-height:60px}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .chip-group{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{padding:5px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;color:#3a3a3c;background:#fff}
+    .chip.on{background:#1d1d1f;border-color:#1d1d1f;color:#fff}
+    .save-bar{padding:12px 16px;background:#fff;border-top:.5px solid #e5e5ea;margin-top:4px}
+    .save-btn{width:100%;padding:12px;background:#1d1d1f;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+    .save-btn:disabled{background:#8e8e93}
+    .err{display:none;background:#fff2f2;border:.5px solid #ffb3b3;border-radius:8px;padding:8px 12px;font-size:12px;color:#ff3b30;margin:0 16px 8px}
+    .success{display:none;text-align:center;padding:4rem 2rem}
+    .success .ck{width:64px;height:64px;background:#34c759;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;color:#fff}
+    .success h2{font-size:20px;font-weight:500;margin-bottom:8px}
+    .success p{font-size:13px;color:#6e6e73}
+    .next-btn{margin-top:1.5rem;width:100%;padding:11px;border:.5px solid #d1d1d6;border-radius:10px;background:none;font-size:13px;cursor:pointer;font-family:inherit;color:#1d1d1f}
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="t1">COVA SYSTEM</div>
+  <div class="t2">新增案件</div>
+</div>
+<div class="back-bar" onclick="history.back()">
+  ← <span>返回列表</span>
+</div>
+
+<div id="form-view">
+  <div class="section">
+    <div class="sec-title">客戶資訊</div>
+    <div class="field"><label>客戶姓名 + 安裝地區<span class="req">*</span></label><input id="f-name" placeholder="例：王小明_新竹"></div>
+    <div class="field"><label>連絡電話<span class="req">*</span></label><input id="f-phone" type="tel" placeholder="0912-345-678" inputmode="tel"></div>
+    <div class="field"><label>安裝地址<span class="req">*</span></label><input id="f-address" placeholder="縣市區路段門號"></div>
+    <div class="row2">
+      <div class="field"><label>電梯</label><select id="f-elevator"><option value="">請選擇</option><option>有電梯</option><option>沒有電梯</option></select></div>
+      <div class="field"><label>客源管道</label><select id="f-source"><option value="">請選擇</option><option>新竹簡單官網</option><option>蝦皮其他</option><option>蝦皮BOSCH</option><option>Yahoo</option><option>PChome</option><option>MOMO</option></select></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">安裝資訊</div>
+    <div class="field"><label>安裝家電類型<span class="req">*</span></label>
+      <div class="chip-group" id="f-appliance">
+        <div class="chip" data-v="洗碗機">洗碗機</div>
+        <div class="chip" data-v="洗衣機">洗衣機</div>
+        <div class="chip" data-v="乾衣機">乾衣機</div>
+        <div class="chip" data-v="冰箱">冰箱</div>
+        <div class="chip" data-v="電視">電視</div>
+        <div class="chip" data-v="其他">其他</div>
+      </div>
+    </div>
+    <div class="field"><label>預約安裝日期</label><input id="f-date" type="date"></div>
+    <div class="field"><label>需要攜帶</label><input id="f-items" placeholder="例：進水管延長組"></div>
+    <div class="field"><label>非標準安裝收費</label><input id="f-fee" placeholder="例：600" inputmode="numeric"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">派工資訊</div>
+    <div class="row2">
+      <div class="field"><label>派工師傅</label><select id="f-tech"><option value="">未派工</option><option>呂師傅</option><option>阿炮師傅</option></select></div>
+      <div class="field"><label>案件進度</label><select id="f-status"><option>聯繫中</option><option>場勘</option><option>待安裝</option><option>完成</option></select></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">其他</div>
+    <div class="field"><label>Google 相簿連結</label><input id="f-album" type="url" placeholder="https://photos.google.com/..."></div>
+    <div class="field"><label>備註 / 客訴紀錄</label><textarea id="f-note" placeholder="特殊狀況或備註"></textarea></div>
+  </div>
+
+  <div class="err" id="err"></div>
+  <div class="save-bar"><button class="save-btn" id="save-btn" onclick="submit()">建立案件</button></div>
+</div>
+
+<div class="success" id="success-view">
+  <div class="ck">✓</div>
+  <h2>案件已建立</h2>
+  <p id="success-info"></p>
+  <button class="next-btn" onclick="reset()">新增下一筆</button>
+  <button class="next-btn" style="margin-top:8px" onclick="history.back()">返回列表</button>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxFG9-gSqOlPTwRFdkc6MtRdU92KqDGDCp1jDu5m-RdzXT2Pxx8epjEmtBfa3X24ej0Yw/exec";
+const user = JSON.parse(sessionStorage.getItem("cova_user") || "null");
+if (!user) window.location.href = "login.html";
+
+document.querySelectorAll("#f-appliance .chip").forEach(c=>{
+  c.addEventListener("click",()=>c.classList.toggle("on"));
+});
+
+async function submit() {
+  const name = document.getElementById("f-name").value.trim();
+  const phone = document.getElementById("f-phone").value.trim();
+  const address = document.getElementById("f-address").value.trim();
+  const appliances = [...document.querySelectorAll("#f-appliance .chip.on")].map(c=>c.dataset.v);
+  const err = document.getElementById("err");
+
+  if (!name){err.textContent="請填寫客戶姓名+安裝地區";err.style.display="block";return}
+  if (!phone){err.textContent="請填寫連絡電話";err.style.display="block";return}
+  if (!address){err.textContent="請填寫安裝地址";err.style.display="block";return}
+  if (!appliances.length){err.textContent="請選擇安裝家電類型";err.style.display="block";return}
+  err.style.display="none";
+
+  const btn = document.getElementById("save-btn");
+  btn.disabled=true; btn.textContent="建立中...";
+
+  try {
+    const resp = await fetch(GAS_URL,{method:"POST",body:JSON.stringify({
+      action:"createCase",
+      data:{
+        name,phone,address,appliances,
+        date: document.getElementById("f-date").value||"",
+        items: document.getElementById("f-items").value.trim(),
+        fee: document.getElementById("f-fee").value.trim(),
+        tech: document.getElementById("f-tech").value,
+        status: document.getElementById("f-status").value,
+        elevator: document.getElementById("f-elevator").value,
+        source: document.getElementById("f-source").value,
+        album: document.getElementById("f-album").value.trim(),
+        note: document.getElementById("f-note").value.trim(),
+      }
+    })});
+    const r=await resp.json();
+    if(r.status==="ok"){
+      document.getElementById("form-view").style.display="none";
+      document.getElementById("success-view").style.display="block";
+      document.getElementById("success-info").textContent=`${name} · ${appliances.join("、")}`;
+    }else throw new Error(r.message);
+  }catch(e){
+    err.textContent="建立失敗："+e.message;
+    err.style.display="block";
+  }finally{
+    btn.disabled=false; btn.textContent="建立案件";
+  }
+}
+
+function reset(){
+  document.getElementById("form-view").style.display="block";
+  document.getElementById("success-view").style.display="none";
+  ["f-name","f-phone","f-address","f-items","f-fee","f-album","f-note"].forEach(id=>document.getElementById(id).value="");
+  ["f-elevator","f-source","f-tech"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("f-status").value="聯繫中";
+  document.getElementById("f-date").value="";
+  document.querySelectorAll("#f-appliance .chip.on").forEach(c=>c.classList.remove("on"));
+  document.getElementById("err").style.display="none";
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>

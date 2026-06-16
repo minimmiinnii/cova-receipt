@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>COVA 師傅排程</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;font-size:14px;background:#f5f5f7;color:#1d1d1f;min-height:100vh}
+    .topbar{background:#1d1d1f;color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:10}
+    .topbar .t1{font-size:10px;opacity:.5;letter-spacing:2px}
+    .topbar .t2{font-size:18px;font-weight:500;margin-top:2px}
+    .topbar .t3{font-size:11px;opacity:.5;margin-top:1px}
+    .tab-bar{display:flex;background:#fff;border-bottom:.5px solid #e5e5ea;position:sticky;top:62px;z-index:9}
+    .tab{flex:1;padding:10px 4px;text-align:center;font-size:12px;font-weight:500;color:#8e8e93;cursor:pointer}
+    .tab.on{color:#1d1d1f;border-bottom:1.5px solid #1d1d1f}
+    .day-lbl{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;padding:14px 16px 6px;border-top:.5px solid #e5e5ea;background:#f5f5f7}
+    .si{margin:0 16px 10px;background:#fff;border:.5px solid #e5e5ea;border-radius:12px;padding:12px 14px}
+    .si-top{display:flex;gap:10px}
+    .si-time{font-size:11px;color:#8e8e93;min-width:40px;padding-top:2px}
+    .si-body{flex:1}
+    .si-name{font-size:14px;font-weight:500}
+    .badge{font-size:10px;padding:3px 8px;border-radius:10px;font-weight:500}
+    .b-bl{background:#E6F1FB;color:#0C447C}
+    .b-gr{background:#EAF3DE;color:#27500A}
+    .b-gy{background:#f2f2f7;color:#6e6e73}
+    .si-det{font-size:11px;color:#6e6e73;margin-top:4px;line-height:1.6}
+    .si-btns{display:flex;gap:8px;margin-top:10px}
+    .sbtn{flex:1;padding:8px 6px;border:.5px solid #d1d1d6;border-radius:8px;background:none;font-size:12px;cursor:pointer;color:#1d1d1f;font-family:inherit;text-align:center}
+    .sbtn.dark{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
+    .empty{text-align:center;padding:3rem 1rem;color:#8e8e93;font-size:14px}
+    .logout-bar{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-top:.5px solid #e5e5ea;margin-top:8px;background:#fff}
+    .logout-btn{font-size:12px;color:#6e6e73;background:none;border:.5px solid #d1d1d6;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit}
+    .summary{background:#fff;margin:12px 16px;border-radius:10px;border:.5px solid #e5e5ea;padding:12px 14px;display:flex;justify-content:space-around;text-align:center}
+    .sum-item .n{font-size:22px;font-weight:500;color:#185FA5}
+    .sum-item .l{font-size:11px;color:#8e8e93;margin-top:2px}
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="t1">COVA SYSTEM</div>
+  <div class="t2">我的排程</div>
+  <div class="t3" id="user-label"></div>
+</div>
+<div class="tab-bar">
+  <div class="tab on" onclick="setTab('week',this)">本週</div>
+  <div class="tab" onclick="setTab('next',this)">下週</div>
+  <div class="tab" onclick="setTab('all',this)">全部</div>
+</div>
+
+<div class="summary">
+  <div class="sum-item"><div class="n" id="s1">—</div><div class="l">待安裝</div></div>
+  <div class="sum-item"><div class="n" id="s2" style="color:#3B6D11">—</div><div class="l">已完成</div></div>
+  <div class="sum-item"><div class="n" id="s3" style="color:#854F0B">—</div><div class="l">全部案件</div></div>
+</div>
+
+<div id="sched-list"></div>
+
+<div class="logout-bar">
+  <span style="font-size:11px;color:#c7c7cc">COVA v1.0</span>
+  <button class="logout-btn" onclick="logout()">登出</button>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxFG9-gSqOlPTwRFdkc6MtRdU92KqDGDCp1jDu5m-RdzXT2Pxx8epjEmtBfa3X24ej0Yw/exec";
+let allCases = [];
+let curTab = 'week';
+
+const user = JSON.parse(sessionStorage.getItem("cova_user") || "null");
+if (!user) { window.location.href = "login.html"; }
+else { document.getElementById("user-label").textContent = user.name + " · 師傅"; }
+
+async function loadCases() {
+  try {
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "getCases", role: user.role, name: user.name })
+    });
+    const r = await resp.json();
+    if (r.status === "ok") {
+      allCases = r.cases;
+      updateSummary();
+      renderSched();
+    }
+  } catch(e) {
+    document.getElementById("sched-list").innerHTML = '<div class="empty">載入失敗，請重新整理</div>';
+  }
+}
+
+function updateSummary() {
+  document.getElementById("s1").textContent = allCases.filter(c=>c["案件進度"]==="待安裝").length;
+  document.getElementById("s2").textContent = allCases.filter(c=>c["案件進度"]==="完成").length;
+  document.getElementById("s3").textContent = allCases.length;
+}
+
+function setTab(tab, el) {
+  curTab = tab;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("on"));
+  el.classList.add("on");
+  renderSched();
+}
+
+function getWeekRange(offset) {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - day + 1 + offset * 7);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  return { start: mon, end: sun };
+}
+
+function inRange(dateStr, range) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  return d >= range.start && d <= range.end;
+}
+
+function renderSched() {
+  let list = [...allCases];
+  if (curTab === 'week') {
+    const r = getWeekRange(0);
+    list = list.filter(c => inRange(c["預約安裝日期"], r));
+  } else if (curTab === 'next') {
+    const r = getWeekRange(1);
+    list = list.filter(c => inRange(c["預約安裝日期"], r));
+  }
+
+  list.sort((a,b) => {
+    const da = a["預約安裝日期"] || "9999";
+    const db = b["預約安裝日期"] || "9999";
+    return da.localeCompare(db);
+  });
+
+  const el = document.getElementById("sched-list");
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">這週沒有安排的案件</div>';
+    return;
+  }
+
+  const byDate = {};
+  list.forEach(c => {
+    const d = c["預約安裝日期"] || "日期未定";
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(c);
+  });
+
+  const weekDays = ["日","一","二","三","四","五","六"];
+  let html = "";
+  Object.entries(byDate).forEach(([date, cases]) => {
+    let dlabel = date;
+    if (date !== "日期未定") {
+      const d = new Date(date);
+      dlabel = `${date} (週${weekDays[d.getDay()]})`;
+    }
+    html += `<div class="day-lbl">${dlabel}</div>`;
+    cases.forEach(c => {
+      const s = c["案件進度"] || "待安裝";
+      const bc = s==="完成"?"b-gr":s==="待安裝"?"b-bl":"b-gy";
+      const addr = c["安裝地址"] || "—";
+      const phone = c["連絡電話"] || "—";
+      const type = c["安裝家電類型"] || "—";
+      const items = c["需要攜帶"] ? `<br>攜帶：${c["需要攜帶"]}` : "";
+      const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(addr)}`;
+      const receiptUrl = `index.html?customer=${encodeURIComponent(c["客戶姓名+安裝地區"]||"")}&phone=${encodeURIComponent(phone)}&address=${encodeURIComponent(addr)}&visit=${encodeURIComponent(date)}&ptype=${encodeURIComponent(type)}&stype=${encodeURIComponent(c["需要攜帶"]||"")}`;
+      html += `<div class="si">
+        <div class="si-top">
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <div class="si-name">${c["客戶姓名+安裝地區"]||"—"}</div>
+              <div class="badge ${bc}">${s}</div>
+            </div>
+            <div class="si-det">
+              📞 ${phone}<br>
+              📍 ${addr}<br>
+              🔧 ${type}${items}
+            </div>
+            <div class="si-btns">
+              <a class="sbtn dark" href="${receiptUrl}">填簽收單</a>
+              <a class="sbtn" href="${mapUrl}" target="_blank">導航</a>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
+function logout() {
+  sessionStorage.clear();
+  window.location.href = "login.html";
+}
+
+loadCases();
+</script>
+</body>
+</html>

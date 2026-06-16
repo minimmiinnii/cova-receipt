@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>COVA 案件詳情</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,'PingFang TC','Noto Sans TC',sans-serif;font-size:14px;background:#f5f5f7;color:#1d1d1f;min-height:100vh}
+    .topbar{background:#1d1d1f;color:#fff;padding:14px 16px 12px}
+    .topbar .t1{font-size:10px;opacity:.5;letter-spacing:2px}
+    .topbar .t2{font-size:18px;font-weight:500;margin-top:2px}
+    .back-bar{background:#fff;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:.5px solid #e5e5ea;cursor:pointer}
+    .back-bar span{font-size:13px;color:#6e6e73}
+    .section{background:#fff;margin:12px 16px;border-radius:12px;border:.5px solid #e5e5ea;overflow:hidden}
+    .sec-title{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;padding:12px 14px 6px}
+    .dl{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;border-top:.5px solid #f2f2f7}
+    .dl:first-of-type{border-top:none}
+    .dk{font-size:13px;color:#6e6e73;min-width:80px}
+    .dv{font-size:13px;text-align:right;flex:1;word-break:break-all}
+    .badge{font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500}
+    .b-bl{background:#E6F1FB;color:#0C447C}
+    .b-gr{background:#EAF3DE;color:#27500A}
+    .b-am{background:#FAEEDA;color:#633806}
+    .b-gy{background:#f2f2f7;color:#6e6e73}
+    .action-row{display:flex;gap:10px;padding:0 16px;margin-top:4px}
+    .abtn{flex:1;padding:12px;border:.5px solid #d1d1d6;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;color:#1d1d1f;font-family:inherit;text-align:center;text-decoration:none;display:block}
+    .abtn.dark{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
+    .status-row{display:flex;gap:6px;padding:8px 14px;flex-wrap:wrap}
+    .stbtn{padding:6px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;background:#fff;color:#3a3a3c;font-family:inherit}
+    .stbtn.on{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
+    .save-bar{padding:12px 16px;background:#fff;border-top:.5px solid #e5e5ea;margin-top:8px}
+    .save-btn{width:100%;padding:12px;background:#1d1d1f;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
+    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;display:none;z-index:99}
+    a.abtn{display:flex;align-items:center;justify-content:center;gap:6px}
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="t1">COVA SYSTEM</div>
+  <div class="t2">案件詳情</div>
+</div>
+<div class="back-bar" onclick="history.back()">
+  ← <span>返回列表</span>
+</div>
+
+<div id="content">
+  <div style="text-align:center;padding:3rem;color:#8e8e93">載入中...</div>
+</div>
+
+<div class="toast" id="toast">已更新</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxFG9-gSqOlPTwRFdkc6MtRdU92KqDGDCp1jDu5m-RdzXT2Pxx8epjEmtBfa3X24ej0Yw/exec";
+const user = JSON.parse(sessionStorage.getItem("cova_user") || "null");
+if (!user) window.location.href = "login.html";
+
+const rowNum = sessionStorage.getItem("cova_row");
+let caseData = null;
+
+async function load() {
+  try {
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "getCases", role: user.role, name: user.name })
+    });
+    const r = await resp.json();
+    if (r.status === "ok") {
+      caseData = r.cases.find(c => String(c._row) === String(rowNum));
+      if (caseData) render();
+      else document.getElementById("content").innerHTML = '<div style="text-align:center;padding:3rem;color:#8e8e93">找不到案件</div>';
+    }
+  } catch(e) {
+    document.getElementById("content").innerHTML = '<div style="text-align:center;padding:3rem;color:#ff3b30">載入失敗</div>';
+  }
+}
+
+function render() {
+  const c = caseData;
+  const s = c["案件進度"] || "聯繫中";
+  const bc = s==="待安裝"?"b-bl":s==="完成"?"b-gr":s==="聯繫中"?"b-am":"b-gy";
+  const statuses = ["聯繫中","場勘","待安裝","安裝中","完成"];
+  const receiptUrl = `index.html?customer=${encodeURIComponent(c["客戶姓名+安裝地區"]||"")}&phone=${encodeURIComponent(c["連絡電話"]||"")}&address=${encodeURIComponent(c["安裝地址"]||"")}&visit=${encodeURIComponent(c["預約安裝日期"]||"")}&ptype=${encodeURIComponent(c["安裝家電類型"]||"")}&stype=${encodeURIComponent(c["需要攜帶"]||"")}`;
+  const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(c["安裝地址"]||"")}`;
+
+  document.getElementById("content").innerHTML = `
+    <div class="action-row" style="margin-top:12px">
+      <a class="abtn dark" href="${receiptUrl}">填簽收單</a>
+      <a class="abtn" href="${mapUrl}" target="_blank">導航</a>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">客戶資訊</div>
+      <div class="dl"><span class="dk">客戶</span><span class="dv">${c["客戶姓名+安裝地區"]||"—"}</span></div>
+      <div class="dl"><span class="dk">電話</span><span class="dv"><a href="tel:${c["連絡電話"]||""}" style="color:#185FA5">${c["連絡電話"]||"—"}</a></span></div>
+      <div class="dl"><span class="dk">地址</span><span class="dv">${c["安裝地址"]||"—"}</span></div>
+      <div class="dl"><span class="dk">電梯</span><span class="dv">${c["電梯"]||"—"}</span></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">安裝資訊</div>
+      <div class="dl"><span class="dk">家電類型</span><span class="dv">${c["安裝家電類型"]||"—"}</span></div>
+      <div class="dl"><span class="dk">安裝日期</span><span class="dv">${c["預約安裝日期"]||"未定"}</span></div>
+      <div class="dl"><span class="dk">需要攜帶</span><span class="dv">${c["需要攜帶"]||"—"}</span></div>
+      <div class="dl"><span class="dk">非標收費</span><span class="dv">${c["非標準安裝收費金額"]||"—"}</span></div>
+      <div class="dl"><span class="dk">派工師傅</span><span class="dv">${c["派工師傅"]||"未派工"}</span></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">更新案件進度</div>
+      <div class="status-row" id="status-row">
+        ${statuses.map(st=>`<button class="stbtn${st===s?" on":""}" onclick="selectStatus(this,'${st}')">${st}</button>`).join("")}
+      </div>
+    </div>
+
+    ${c["現場狀況與客訴紀錄"] ? `<div class="section"><div class="sec-title">備註</div><div class="dl"><span class="dv" style="text-align:left">${c["現場狀況與客訴紀錄"]}</span></div></div>` : ""}
+    ${c["Google相簿連結"] ? `<div class="section"><div class="sec-title">Google 相簿</div><div class="dl"><a href="${c["Google相簿連結"]}" target="_blank" style="color:#185FA5;font-size:13px;padding:0 14px">開啟相簿</a></div></div>` : ""}
+
+    <div class="save-bar">
+      <button class="save-btn" onclick="saveStatus()">儲存進度</button>
+    </div>
+  `;
+}
+
+function selectStatus(el, st) {
+  document.querySelectorAll(".stbtn").forEach(b=>b.classList.remove("on"));
+  el.classList.add("on");
+  caseData["案件進度"] = st;
+}
+
+async function saveStatus() {
+  try {
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "updateCase", rowNum: parseInt(rowNum), data: { "案件進度": caseData["案件進度"] } })
+    });
+    const r = await resp.json();
+    if (r.status === "ok") showToast("已更新進度");
+    else showToast("更新失敗");
+  } catch(e) { showToast("更新失敗"); }
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  setTimeout(()=>t.style.display="none", 2000);
+}
+
+load();
+</script>
+</body>
+</html>
