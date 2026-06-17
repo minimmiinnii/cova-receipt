@@ -18,15 +18,10 @@
     .dl:first-of-type{border-top:none}
     .dk{font-size:13px;color:#6e6e73;min-width:90px}
     .dv{font-size:13px;text-align:right;flex:1;word-break:break-all}
-    .badge{font-size:11px;padding:3px 10px;border-radius:10px;font-weight:500}
-    .b-bl{background:#E6F1FB;color:#0C447C}
-    .b-gr{background:#EAF3DE;color:#27500A}
-    .b-am{background:#FAEEDA;color:#633806}
-    .b-gy{background:#f2f2f7;color:#6e6e73}
-    .action-row{display:flex;gap:10px;padding:0 16px;margin-top:12px}
-    .abtn{flex:1;padding:12px;border:.5px solid #d1d1d6;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;color:#1d1d1f;font-family:inherit;text-align:center;text-decoration:none;display:block}
+    .action-row{display:flex;gap:8px;padding:0 16px;margin-top:12px;flex-wrap:wrap}
+    .abtn{flex:1;min-width:calc(50% - 4px);padding:11px 8px;border:.5px solid #d1d1d6;border-radius:10px;background:#fff;font-size:12px;cursor:pointer;color:#1d1d1f;font-family:inherit;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:4px}
     .abtn.dark{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
-    .abtn.edit-btn{background:#f5f5f7;border-color:#d1d1d6}
+    .abtn.full{min-width:100%;flex:none}
     .status-row{display:flex;gap:6px;padding:8px 14px;flex-wrap:wrap}
     .stbtn{padding:6px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;background:#fff;color:#3a3a3c;font-family:inherit}
     .stbtn.on{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
@@ -34,18 +29,18 @@
     .save-btn{flex:1;padding:12px;background:#1d1d1f;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit}
     .save-btn.cancel{background:#fff;color:#1d1d1f;border:.5px solid #d1d1d6}
     .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;display:none;z-index:99}
-    a.abtn{display:flex;align-items:center;justify-content:center;gap:6px}
-    /* 編輯模式 */
     .edit-section{background:#fff;margin:12px 16px;border-radius:12px;border:.5px solid #e5e5ea;overflow:hidden;padding:12px 14px}
     .edit-field{margin-bottom:12px}
     .edit-field label{display:block;font-size:11px;font-weight:500;color:#6e6e73;margin-bottom:4px}
     .edit-field input,.edit-field select,.edit-field textarea{width:100%;padding:9px 11px;border:.5px solid #d1d1d6;border-radius:8px;font-size:13px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none;appearance:none;-webkit-appearance:none}
     .edit-field textarea{resize:vertical;min-height:60px}
     .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .datetime-row{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
     .chip-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
     .chip{padding:5px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;color:#3a3a3c;background:#fff}
     .chip.on{background:#1d1d1f;border-color:#1d1d1f;color:#fff}
     .edit-sec-title{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;margin-bottom:10px}
+    .drive-btn{background:#1a73e8;color:#fff;border-color:#1a73e8}
   </style>
 </head>
 <body>
@@ -73,11 +68,8 @@ let caseData = null;
 let editMode = false;
 
 function handleBack() {
-  if (editMode) {
-    exitEdit();
-  } else {
-    history.back();
-  }
+  if (editMode) exitEdit();
+  else history.back();
 }
 
 async function load() {
@@ -97,6 +89,11 @@ async function load() {
   }
 }
 
+function getDriveUrl(caseId) {
+  // Drive 路徑：COVA簽收單 / 案件ID
+  return `https://drive.google.com/drive/search?q=${encodeURIComponent(caseId)}`;
+}
+
 function renderDetail() {
   editMode = false;
   document.getElementById("page-title").textContent = "案件詳情";
@@ -106,12 +103,14 @@ function renderDetail() {
   const statuses = ["聯繫中","場勘","待安裝","安裝中","完成"];
   const receiptUrl = `index.html?customer=${encodeURIComponent(c["客戶姓名+安裝地區"]||"")}&phone=${encodeURIComponent(c["連絡電話"]||"")}&address=${encodeURIComponent(c["安裝地址"]||"")}&visit=${encodeURIComponent(c["預約安裝日期"]||"")}&ptype=${encodeURIComponent(c["安裝家電類型"]||"")}&stype=${encodeURIComponent(c["需要攜帶"]||"")}`;
   const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(c["安裝地址"]||"")}`;
+  const driveUrl = getDriveUrl(c["案件ID"] || "");
 
   document.getElementById("content").innerHTML = `
     <div class="action-row">
-      <a class="abtn dark" href="${receiptUrl}">填簽收單</a>
-      <a class="abtn" href="${mapUrl}" target="_blank">導航</a>
-      <button class="abtn edit-btn" onclick="enterEdit()">編輯</button>
+      <a class="abtn dark" href="${receiptUrl}">📋 填簽收單</a>
+      <a class="abtn" href="${mapUrl}" target="_blank">🗺 導航</a>
+      <a class="abtn drive-btn" href="${driveUrl}" target="_blank">☁️ 簽收檔案</a>
+      <button class="abtn" onclick="enterEdit()">✏️ 編輯</button>
     </div>
 
     <div class="section">
@@ -126,9 +125,11 @@ function renderDetail() {
     <div class="section">
       <div class="sec-title">安裝資訊</div>
       <div class="dl"><span class="dk">家電類型</span><span class="dv">${c["安裝家電類型"]||"—"}</span></div>
+      <div class="dl"><span class="dk">購買機型</span><span class="dv">${c["購買機型"]||"—"}</span></div>
       <div class="dl"><span class="dk">安裝日期</span><span class="dv">${c["預約安裝日期"]||"未定"}</span></div>
       <div class="dl"><span class="dk">需要攜帶</span><span class="dv">${c["需要攜帶"]||"—"}</span></div>
       <div class="dl"><span class="dk">非標收費</span><span class="dv">${c["非標準安裝收費金額"]||"—"}</span></div>
+      <div class="dl"><span class="dk">負責業務</span><span class="dv">${c["負責業務"]||"—"}</span></div>
       <div class="dl"><span class="dk">派工師傅</span><span class="dv">${c["派工師傅"]||"未派工"}</span></div>
     </div>
 
@@ -145,6 +146,7 @@ function renderDetail() {
     <div class="save-bar">
       <button class="save-btn" onclick="saveStatus()">儲存進度</button>
     </div>
+    <div style="height:20px"></div>
   `;
 }
 
@@ -155,6 +157,10 @@ function enterEdit() {
   const c = caseData;
   const appliances = ["洗碗機","洗衣機","乾衣機","冰箱","電視","其他"];
   const currentAppliances = (c["安裝家電類型"]||"").split("、");
+  // 拆分日期和時間
+  const dtParts = (c["預約安裝日期"]||"").split(" ");
+  const dateVal = dtParts[0] || "";
+  const timeVal = dtParts[1] || "09:00";
 
   document.getElementById("content").innerHTML = `
     <div class="edit-section">
@@ -186,7 +192,13 @@ function enterEdit() {
           ${appliances.map(a=>`<div class="chip${currentAppliances.includes(a)?" on":""}" data-v="${a}">${a}</div>`).join("")}
         </div>
       </div>
-      <div class="edit-field"><label>預約安裝日期</label><input id="e-date" type="date" value="${c["預約安裝日期"]||""}"></div>
+      <div class="edit-field"><label>購買機型</label><input id="e-model" value="${c["購買機型"]||""}"></div>
+      <div class="edit-field"><label>預約安裝日期 / 時間</label>
+        <div class="datetime-row">
+          <input id="e-date" type="date" value="${dateVal}">
+          <input id="e-time" type="time" value="${timeVal}">
+        </div>
+      </div>
       <div class="edit-field"><label>需要攜帶</label><input id="e-items" value="${c["需要攜帶"]||""}"></div>
       <div class="edit-field"><label>非標準安裝收費</label><input id="e-fee" value="${c["非標準安裝收費金額"]||""}" inputmode="numeric"></div>
     </div>
@@ -194,17 +206,23 @@ function enterEdit() {
     <div class="edit-section">
       <div class="edit-sec-title">派工資訊</div>
       <div class="row2">
+        <div class="edit-field"><label>負責業務</label>
+          <select id="e-sales">
+            <option value="">請選擇</option>
+            ${["Heidi","Tammy"].map(s=>`<option${c["負責業務"]===s?" selected":""}>${s}</option>`).join("")}
+          </select>
+        </div>
         <div class="edit-field"><label>派工師傅</label>
           <select id="e-tech">
             <option value="">未派工</option>
             ${["呂師傅","阿炮師傅"].map(t=>`<option${c["派工師傅"]===t?" selected":""}>${t}</option>`).join("")}
           </select>
         </div>
-        <div class="edit-field"><label>案件進度</label>
-          <select id="e-status">
-            ${["聯繫中","場勘","待安裝","安裝中","完成"].map(s=>`<option${c["案件進度"]===s?" selected":""}>${s}</option>`).join("")}
-          </select>
-        </div>
+      </div>
+      <div class="edit-field"><label>案件進度</label>
+        <select id="e-status">
+          ${["聯繫中","場勘","待安裝","安裝中","完成"].map(s=>`<option${c["案件進度"]===s?" selected":""}>${s}</option>`).join("")}
+        </select>
       </div>
     </div>
 
@@ -218,6 +236,7 @@ function enterEdit() {
       <button class="save-btn cancel" onclick="exitEdit()">取消</button>
       <button class="save-btn" onclick="saveEdit()">儲存變更</button>
     </div>
+    <div style="height:20px"></div>
   `;
 
   document.querySelectorAll("#e-appliance .chip").forEach(chip => {
@@ -225,12 +244,14 @@ function enterEdit() {
   });
 }
 
-function exitEdit() {
-  renderDetail();
-}
+function exitEdit() { renderDetail(); }
 
 async function saveEdit() {
   const appliances = [...document.querySelectorAll("#e-appliance .chip.on")].map(c=>c.dataset.v);
+  const date = document.getElementById("e-date").value;
+  const time = document.getElementById("e-time").value;
+  const datetime = date ? (time ? date + " " + time : date) : "";
+
   const data = {
     "客戶姓名+安裝地區": document.getElementById("e-name").value.trim(),
     "連絡電話": document.getElementById("e-phone").value.trim(),
@@ -238,9 +259,11 @@ async function saveEdit() {
     "電梯": document.getElementById("e-elevator").value,
     "客源管道": document.getElementById("e-source").value,
     "安裝家電類型": appliances.join("、"),
-    "預約安裝日期": document.getElementById("e-date").value,
+    "購買機型": document.getElementById("e-model").value.trim(),
+    "預約安裝日期": datetime,
     "需要攜帶": document.getElementById("e-items").value.trim(),
     "非標準安裝收費金額": document.getElementById("e-fee").value.trim(),
+    "負責業務": document.getElementById("e-sales").value,
     "派工師傅": document.getElementById("e-tech").value,
     "案件進度": document.getElementById("e-status").value,
     "Google相簿連結": document.getElementById("e-album").value.trim(),
@@ -257,12 +280,8 @@ async function saveEdit() {
       Object.assign(caseData, data);
       showToast("已儲存變更");
       setTimeout(() => renderDetail(), 1000);
-    } else {
-      showToast("儲存失敗");
-    }
-  } catch(e) {
-    showToast("儲存失敗");
-  }
+    } else showToast("儲存失敗");
+  } catch(e) { showToast("儲存失敗"); }
 }
 
 function selectStatus(el, st) {

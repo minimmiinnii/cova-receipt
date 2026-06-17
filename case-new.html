@@ -20,6 +20,7 @@
     .field input,.field select,.field textarea{width:100%;padding:9px 11px;border:.5px solid #d1d1d6;border-radius:8px;font-size:13px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none;appearance:none;-webkit-appearance:none}
     .field textarea{resize:vertical;min-height:60px}
     .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .datetime-row{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
     .chip-group{display:flex;flex-wrap:wrap;gap:6px}
     .chip{padding:5px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;color:#3a3a3c;background:#fff}
     .chip.on{background:#1d1d1f;border-color:#1d1d1f;color:#fff}
@@ -67,7 +68,13 @@
         <div class="chip" data-v="其他">其他</div>
       </div>
     </div>
-    <div class="field"><label>預約安裝日期</label><input id="f-date" type="date"></div>
+    <div class="field"><label>購買機型</label><input id="f-model" placeholder="例：BOSCH SMS4HVW33E"></div>
+    <div class="field"><label>預約安裝日期 / 時間</label>
+      <div class="datetime-row">
+        <input id="f-date" type="date">
+        <input id="f-time" type="time" value="09:00">
+      </div>
+    </div>
     <div class="field"><label>需要攜帶</label><input id="f-items" placeholder="例：進水管延長組"></div>
     <div class="field"><label>非標準安裝收費</label><input id="f-fee" placeholder="例：600" inputmode="numeric"></div>
   </div>
@@ -75,9 +82,10 @@
   <div class="section">
     <div class="sec-title">派工資訊</div>
     <div class="row2">
+      <div class="field"><label>負責業務</label><select id="f-sales"><option value="">請選擇</option><option>Heidi</option><option>Tammy</option></select></div>
       <div class="field"><label>派工師傅</label><select id="f-tech"><option value="">未派工</option><option>呂師傅</option><option>阿炮師傅</option></select></div>
-      <div class="field"><label>案件進度</label><select id="f-status"><option>聯繫中</option><option>場勘</option><option>待安裝</option><option>完成</option></select></div>
     </div>
+    <div class="field"><label>案件進度</label><select id="f-status"><option>聯繫中</option><option>場勘</option><option>待安裝</option><option>安裝中</option><option>完成</option></select></div>
   </div>
 
   <div class="section">
@@ -87,7 +95,7 @@
   </div>
 
   <div class="err" id="err"></div>
-  <div class="save-bar"><button class="save-btn" id="save-btn" onclick="submit()">建立案件</button></div>
+  <div class="save-bar"><button class="save-btn" id="save-btn" onclick="submitForm()">建立案件</button></div>
 </div>
 
 <div class="success" id="success-view">
@@ -107,11 +115,14 @@ document.querySelectorAll("#f-appliance .chip").forEach(c=>{
   c.addEventListener("click",()=>c.classList.toggle("on"));
 });
 
-async function submit() {
+async function submitForm() {
   const name = document.getElementById("f-name").value.trim();
   const phone = document.getElementById("f-phone").value.trim();
   const address = document.getElementById("f-address").value.trim();
   const appliances = [...document.querySelectorAll("#f-appliance .chip.on")].map(c=>c.dataset.v);
+  const date = document.getElementById("f-date").value;
+  const time = document.getElementById("f-time").value;
+  const datetime = date ? (time ? date + " " + time : date) : "";
   const err = document.getElementById("err");
 
   if (!name){err.textContent="請填寫客戶姓名+安裝地區";err.style.display="block";return}
@@ -128,9 +139,11 @@ async function submit() {
       action:"createCase",
       data:{
         name,phone,address,appliances,
-        date: document.getElementById("f-date").value||"",
+        model: document.getElementById("f-model").value.trim(),
+        date: datetime,
         items: document.getElementById("f-items").value.trim(),
         fee: document.getElementById("f-fee").value.trim(),
+        sales: document.getElementById("f-sales").value,
         tech: document.getElementById("f-tech").value,
         status: document.getElementById("f-status").value,
         elevator: document.getElementById("f-elevator").value,
@@ -156,10 +169,11 @@ async function submit() {
 function reset(){
   document.getElementById("form-view").style.display="block";
   document.getElementById("success-view").style.display="none";
-  ["f-name","f-phone","f-address","f-items","f-fee","f-album","f-note"].forEach(id=>document.getElementById(id).value="");
-  ["f-elevator","f-source","f-tech"].forEach(id=>document.getElementById(id).value="");
+  ["f-name","f-phone","f-address","f-model","f-items","f-fee","f-album","f-note"].forEach(id=>document.getElementById(id).value="");
+  ["f-elevator","f-source","f-sales","f-tech"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("f-status").value="聯繫中";
   document.getElementById("f-date").value="";
+  document.getElementById("f-time").value="09:00";
   document.querySelectorAll("#f-appliance .chip.on").forEach(c=>c.classList.remove("on"));
   document.getElementById("err").style.display="none";
   window.scrollTo(0,0);
