@@ -417,11 +417,13 @@ async function submitForm() {
     prog.textContent = photoFiles.length > 0 ? `共 ${photos.length} 張照片` : "";
 
     const customer = gv("f-customer");
+    const caseId = getParam("caseId") !== "—" ? getParam("caseId") : "";
+    const filePrefix = caseId ? `${caseId}_${customer}` : customer;
     const payload = {
       pdfBase64,
-      filename: `COVA_簽收單_${customer}_${todayStr.replace(/ /g,"")}.pdf`,
+      filename: `${filePrefix}_簽收單.pdf`,
       photos,
-      svcno: customer, customer, tech,
+      svcno: caseId || customer, customer, tech,
       date: todayStr,
       total: document.getElementById("total-cell").textContent,
     };

@@ -101,7 +101,7 @@ function renderDetail() {
   const c = caseData;
   const s = c["案件進度"] || "聯繫中";
   const statuses = ["聯繫中","場勘","待安裝","安裝中","完成"];
-  const receiptUrl = `index.html?customer=${encodeURIComponent(c["客戶姓名+安裝地區"]||"")}&phone=${encodeURIComponent(c["連絡電話"]||"")}&address=${encodeURIComponent(c["安裝地址"]||"")}&visit=${encodeURIComponent(c["預約安裝日期"]||"")}&ptype=${encodeURIComponent(c["安裝家電類型"]||"")}&stype=${encodeURIComponent(c["需要攜帶"]||"")}`;
+  const receiptUrl = `index.html?caseId=${encodeURIComponent(c["案件ID"]||"")}&customer=${encodeURIComponent(c["客戶姓名+安裝地區"]||"")}&phone=${encodeURIComponent(c["連絡電話"]||"")}&address=${encodeURIComponent(c["安裝地址"]||"")}&visit=${encodeURIComponent(c["預約安裝日期"]||"")}&ptype=${encodeURIComponent(c["安裝家電類型"]||"")}&stype=${encodeURIComponent(c["需要攜帶"]||"")}`;
   const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(c["安裝地址"]||"")}`;
   const driveUrl = getDriveUrl(c["案件ID"] || "");
 
