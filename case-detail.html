@@ -41,6 +41,8 @@
     .chip.on{background:#1d1d1f;border-color:#1d1d1f;color:#fff}
     .edit-sec-title{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;margin-bottom:10px}
     .drive-btn{background:#1a73e8;color:#fff;border-color:#1a73e8}
+    .del-btn{background:#fff2f2;color:#ff3b30;border-color:#ffb3b3}
+    .confirm-del{background:#ff3b30;color:#fff;border-color:#ff3b30}
   </style>
 </head>
 <body>
@@ -100,7 +102,7 @@ function renderDetail() {
   document.getElementById("back-label").textContent = "返回列表";
   const c = caseData;
   const s = c["案件進度"] || "聯繫中";
-  const statuses = ["聯繫中","場勘","待安裝","安裝中","完成"];
+  const statuses = ["聯繫中","場勘","安裝","完成"];
   const receiptUrl = `index.html?caseId=${encodeURIComponent(c["案件ID"]||"")}&customer=${encodeURIComponent(c["客戶姓名+安裝地區"]||"")}&phone=${encodeURIComponent(c["連絡電話"]||"")}&address=${encodeURIComponent(c["安裝地址"]||"")}&visit=${encodeURIComponent(c["預約安裝日期"]||"")}&ptype=${encodeURIComponent(c["安裝家電類型"]||"")}&stype=${encodeURIComponent(c["需要攜帶"]||"")}`;
   const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(c["安裝地址"]||"")}`;
   const driveUrl = getDriveUrl(c["案件ID"] || "");
@@ -111,6 +113,7 @@ function renderDetail() {
       <a class="abtn" href="${mapUrl}" target="_blank">🗺 導航</a>
       <a class="abtn drive-btn" href="${driveUrl}" target="_blank">☁️ 簽收檔案</a>
       <button class="abtn" onclick="enterEdit()">✏️ 編輯</button>
+      ${user.role === "admin" ? `<button class="abtn del-btn" onclick="confirmDelete()">🗑 刪除</button>` : ""}
     </div>
 
     <div class="section">
@@ -209,7 +212,7 @@ function enterEdit() {
         <div class="edit-field"><label>負責業務</label>
           <select id="e-sales">
             <option value="">請選擇</option>
-            ${["Heidi","Tammy"].map(s=>`<option${c["負責業務"]===s?" selected":""}>${s}</option>`).join("")}
+            ${["Tammy","Emma","Karina","Heidi","Snow","Ting","Lynn","Limao"].map(s=>`<option${c["負責業務"]===s?" selected":""}>${s}</option>`).join("")}
           </select>
         </div>
         <div class="edit-field"><label>派工師傅</label>
@@ -221,7 +224,7 @@ function enterEdit() {
       </div>
       <div class="edit-field"><label>案件進度</label>
         <select id="e-status">
-          ${["聯繫中","場勘","待安裝","安裝中","完成"].map(s=>`<option${c["案件進度"]===s?" selected":""}>${s}</option>`).join("")}
+          ${["聯繫中","場勘","安裝","完成"].map(s=>`<option${c["案件進度"]===s?" selected":""}>${s}</option>`).join("")}
         </select>
       </div>
     </div>
@@ -245,6 +248,28 @@ function enterEdit() {
 }
 
 function exitEdit() { renderDetail(); }
+
+function confirmDelete() {
+  if (confirm("確定要刪除這筆案件嗎？此動作無法復原。")) {
+    deleteCase();
+  }
+}
+
+async function deleteCase() {
+  try {
+    const resp = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "deleteCase", rowNum: parseInt(rowNum) })
+    });
+    const r = await resp.json();
+    if (r.status === "ok") {
+      showToast("案件已刪除");
+      setTimeout(() => window.location.href = "dashboard.html", 1000);
+    } else {
+      showToast("刪除失敗");
+    }
+  } catch(e) { showToast("刪除失敗"); }
+}
 
 async function saveEdit() {
   const appliances = [...document.querySelectorAll("#e-appliance .chip.on")].map(c=>c.dataset.v);
