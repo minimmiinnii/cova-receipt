@@ -103,17 +103,17 @@
         <tr>
           <th style="width:24px">序</th>
           <th>服務項目</th>
-          <th style="width:56px">材料費</th>
-          <th style="width:46px">工資</th>
           <th style="width:38px">數量</th>
           <th style="width:54px">小計</th>
+          <th style="width:46px">已付</th>
+          <th style="width:54px">現場收費</th>
           <th style="width:26px"></th>
         </tr>
       </thead>
       <tbody id="detail-body"></tbody>
       <tfoot>
         <tr class="total-row">
-          <td colspan="5" style="text-align:right;padding-right:10px">總計（含稅）</td>
+          <td colspan="3" style="text-align:right;padding-right:10px">總計（含稅）</td>
           <td id="total-cell">0</td>
           <td></td>
         </tr>
@@ -212,14 +212,22 @@ function loadCaseInfo() {
     const el = document.getElementById(id);
     if (el) el.textContent = getParam(p);
   }
+  // 自動帶入非標準安裝收費金額
+  const fee = new URLSearchParams(window.location.search).get("fee") || "";
+  if (fee && fee !== "—" && fee !== "") {
+    setTimeout(() => {
+      const firstSub = document.querySelector("#detail-body .sub");
+      if (firstSub) { firstSub.value = fee; calcTotal(); }
+    }, 100);
+  }
 }
 
 // 明細表
 let rowIdx = 0;
 function addRow(data) {
   rowIdx++;
-  const d = data || { name:"", mat:0, labor:0, qty:1 };
-  const sub = ((parseFloat(d.mat)||0) + (parseFloat(d.labor)||0)) * (parseFloat(d.qty)||1);
+  const d = data || { name:"", qty:1, sub:0, paid:0, cash:0 };
+  const sub = parseFloat(d.sub)||0;
   const tr = document.createElement("tr");
   tr.innerHTML = `<td>${rowIdx}</td>
     <td class="name-cell"><input class="nm" value="${d.name}" placeholder="項目名稱"></td>
@@ -228,15 +236,13 @@ function addRow(data) {
     <td><input class="qty" type="number" value="${d.qty}" min="1" inputmode="numeric"></td>
     <td><input class="sub" type="number" value="${sub}" readonly></td>
     <td><button class="del-btn" onclick="this.closest('tr').remove();calcTotal()">×</button></td>`;
-  ["mat","labor","qty"].forEach(c => tr.querySelector("."+c).addEventListener("input", ()=>calcRow(tr)));
+  ["qty","sub","paid","cash"].forEach(c => tr.querySelector("."+c).addEventListener("input", ()=>calcRow(tr)));
   document.getElementById("detail-body").appendChild(tr);
   calcTotal();
 }
 function calcRow(tr) {
-  const mat = parseFloat(tr.querySelector(".mat").value)||0;
-  const labor = parseFloat(tr.querySelector(".labor").value)||0;
+  const sub = parseFloat(tr.querySelector(".sub").value)||0;
   const qty = parseFloat(tr.querySelector(".qty").value)||1;
-  tr.querySelector(".sub").value = (mat+labor)*qty;
   calcTotal();
 }
 function calcTotal() {
@@ -244,7 +250,7 @@ function calcTotal() {
   document.querySelectorAll("#detail-body tr").forEach(tr => { t += parseFloat(tr.querySelector(".sub").value)||0; });
   document.getElementById("total-cell").textContent = t;
 }
-addRow({ name:"", mat:0, labor:0, qty:1 });
+addRow({ name:"非標準安裝", qty:1, sub:0, paid:0, cash:0 });
 
 // 簽名
 const canvas = document.getElementById("sigCanvas");
@@ -411,7 +417,7 @@ function resetForm() {
   rowIdx = 0; photoFiles = [];
   document.getElementById("photo-grid").innerHTML = "";
   document.getElementById("photo-count").textContent = "";
-  addRow({ name:"", mat:0, labor:0, qty:1 });
+  addRow({ name:"非標準安裝", qty:1, sub:0, paid:0, cash:0 });
   hideError();
   window.scrollTo(0,0);
 }
