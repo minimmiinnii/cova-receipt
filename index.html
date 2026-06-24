@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>COVA 到府安裝簽收單</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, 'PingFang TC', 'Noto Sans TC', sans-serif; font-size: 14px; background: #f5f5f7; color: #1d1d1f; }
@@ -309,77 +310,30 @@ function compressPhoto(file, maxPx = 1200) {
   });
 }
 
-// 產出 PDF
-function buildPDF() {
+// 產出 PDF（html2canvas 截圖，完整支援中文）
+async function buildPDF() {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:"mm", format:"a4" });
-  const W=210, mL=14, mR=14, cW=W-mL-mR;
-  let y=14;
-  doc.setFont("helvetica","bold"); doc.setFontSize(16);
-  doc.text("COVA", W/2, y, {align:"center"}); y+=7;
-  doc.setFontSize(10); doc.setFont("helvetica","normal");
-  doc.text("Installation Completion Receipt", W/2, y, {align:"center"}); y+=5;
-  doc.setDrawColor(29,29,31); doc.setLineWidth(0.5);
-  doc.line(mL, y, W-mR, y); y+=7;
-
-  const fields = [
-    ["客戶姓名+安裝地區",gv("f-customer")],
-    ["連絡電話",gv("f-phone")],["預約安裝日期",gv("f-visit")],
-    ["安裝地址",gv("f-address")],
-    ["購買機型",gv("f-model")],["安裝家電類型",gv("f-ptype")],
-    ["需要攜帶",gv("f-stype")],
-  ];
-  const cH=7, hW=cW/2;
-  let col=0;
-  doc.setDrawColor(180,180,186); doc.setLineWidth(0.3);
-  fields.forEach(f => {
-    const wide = (f[0]==="客戶姓名+安裝地區"||f[0]==="安裝地址"||f[0]==="需要攜帶");
-    const fW = wide ? cW : hW;
-    const x = mL + (col===1 ? hW : 0);
-    doc.setFillColor(242,242,247); doc.rect(x,y,fW,cH,"FD");
-    doc.setTextColor(100,100,110); doc.setFont("helvetica","bold"); doc.setFontSize(8);
-    doc.text(f[0], x+2, y+4.5);
-    doc.setFillColor(255,255,255); doc.rect(x,y+cH,fW,cH,"FD");
-    doc.setTextColor(29,29,31); doc.setFont("helvetica","normal");
-    doc.text(String(f[1]).substring(0,40), x+2, y+cH+4.5);
-    if (wide) { y+=cH*2; col=0; }
-    else { if(col===0) col=1; else { y+=cH*2; col=0; } }
-  });
-  if(col===1) y+=cH*2;
-  y+=4;
-
-  doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(100,100,110);
-  doc.text("服務明細", mL, y); y+=4;
-  const cols=[10,60,22,22,18,24];
-  const hdrs=["序","服務項目","材料費","工資","數量","小計"];
-  let x2=mL;
-  doc.setFillColor(242,242,247);
-  cols.forEach((w,i)=>{ doc.rect(x2,y,w,7,"FD"); doc.setTextColor(58,58,60); doc.text(hdrs[i],x2+w/2,y+4.8,{align:"center"}); x2+=w; });
-  y+=7;
-  document.querySelectorAll("#detail-body tr").forEach((tr,idx)=>{
-    const cells=[String(idx+1),tr.querySelector(".nm").value||"—",tr.querySelector(".mat").value||"0",
-      tr.querySelector(".labor").value||"0",tr.querySelector(".qty").value||"1",tr.querySelector(".sub").value||"0"];
-    x2=mL; doc.setFillColor(255,255,255); doc.setTextColor(29,29,31); doc.setFont("helvetica","normal");
-    cols.forEach((w,i)=>{ doc.rect(x2,y,w,7,"FD"); doc.text(cells[i].substring(0,28),x2+w/2,y+4.8,{align:"center"}); x2+=w; });
-    y+=7;
-  });
-  const tCW=cols.slice(0,-1).reduce((a,b)=>a+b,0);
-  doc.setFillColor(242,242,247); doc.setFont("helvetica","bold");
-  doc.rect(mL,y,tCW,7,"FD"); doc.text("總計（含稅）",mL+tCW-2,y+4.8,{align:"right"});
-  doc.rect(mL+tCW,y,cols[5],7,"FD"); doc.text(document.getElementById("total-cell").textContent,mL+tCW+cols[5]/2,y+4.8,{align:"center"});
-  y+=12;
-
-  const remark = document.getElementById("remark").value;
-  if(remark.trim()){ doc.setFont("helvetica","bold").setFontSize(8).setTextColor(100,100,110);
-    doc.text("備註事項",mL,y); y+=5; doc.setFont("helvetica","normal").setTextColor(29,29,31);
-    const lines=doc.splitTextToSize(remark,cW); doc.text(lines,mL,y); y+=lines.length*5+4; }
-
-  doc.setFont("helvetica","bold").setFontSize(8).setTextColor(100,100,110);
-  doc.text("客戶簽名（本人同意電子簽署的效力比照紙本）",mL,y); y+=5;
-  doc.addImage(canvas.toDataURL("image/png"),"PNG",mL,y,80,30); y+=35;
-  doc.setFont("helvetica","normal").setFontSize(9).setTextColor(29,29,31);
-  doc.text("安裝師傅："+(document.getElementById("tech-name").value||"—"),mL,y);
-  doc.text(todayStr,W-mR,y,{align:"right"});
+  const page = document.querySelector(".page");
+  // 截圖前隱藏操作按鈕
+  const hideEls = document.querySelectorAll(".submit-btn, .add-row-btn, .del-btn, .sig-clear, #photo-upload-area, .photo-upload-area, .photo-count");
+  hideEls.forEach(el => el.style.visibility = "hidden");
+  const canvas2 = await html2canvas(page, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+  hideEls.forEach(el => el.style.visibility = "");
+  const imgData = canvas2.toDataURL("image/jpeg", 0.92);
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pW = 210, pH = 297;
+  const imgW = pW;
+  const imgH = canvas2.height * pW / canvas2.width;
+  if (imgH <= pH) {
+    doc.addImage(imgData, "JPEG", 0, 0, imgW, imgH);
+  } else {
+    let yOffset = 0;
+    while (yOffset < imgH) {
+      if (yOffset > 0) doc.addPage();
+      doc.addImage(imgData, "JPEG", 0, -yOffset, imgW, imgH);
+      yOffset += pH;
+    }
+  }
   return doc;
 }
 
@@ -402,7 +356,7 @@ async function submitForm() {
   try {
     msg.textContent = "正在產出 PDF...";
     prog.textContent = "";
-    const pdfDoc = buildPDF();
+    const pdfDoc = await buildPDF();
     const pdfBase64 = pdfDoc.output("datauristring").split(",")[1];
 
     msg.textContent = "正在處理照片...";
