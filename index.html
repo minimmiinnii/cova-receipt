@@ -230,11 +230,11 @@ function addRow(data) {
   const sub = parseFloat(d.sub)||0;
   const tr = document.createElement("tr");
   tr.innerHTML = `<td>${rowIdx}</td>
-    <td class="name-cell"><input class="nm" value="${d.name}" placeholder="項目名稱"></td>
-    <td><input class="mat" type="number" value="${d.mat}" min="0" inputmode="numeric"></td>
-    <td><input class="labor" type="number" value="${d.labor}" min="0" inputmode="numeric"></td>
-    <td><input class="qty" type="number" value="${d.qty}" min="1" inputmode="numeric"></td>
-    <td><input class="sub" type="number" value="${sub}" readonly></td>
+    <td class="name-cell"><input class="nm" value="${d.name||''}" placeholder="項目名稱"></td>
+    <td><input class="qty" type="number" value="${d.qty||1}" min="1" inputmode="numeric"></td>
+    <td><input class="sub" type="number" value="${sub}" min="0" inputmode="numeric"></td>
+    <td><input class="paid" type="number" value="${d.paid||0}" min="0" inputmode="numeric"></td>
+    <td><input class="cash" type="number" value="${d.cash||0}" min="0" inputmode="numeric"></td>
     <td><button class="del-btn" onclick="this.closest('tr').remove();calcTotal()">×</button></td>`;
   ["qty","sub","paid","cash"].forEach(c => tr.querySelector("."+c).addEventListener("input", ()=>calcRow(tr)));
   document.getElementById("detail-body").appendChild(tr);
@@ -394,7 +394,7 @@ async function submitForm() {
     if (result.status === "ok") {
       document.getElementById("form-view").style.display = "none";
       document.getElementById("success-view").style.display = "block";
-      document.getElementById("success-info").textContent = `服務單號 ${svcno}｜${customer}｜NT$ ${payload.total}`;
+      document.getElementById("success-info").textContent = `服務單號 ${payload.svcno}｜${customer}｜NT$ ${payload.total}`;
       document.getElementById("success-photo-info").textContent = photos.length > 0 ? `附件：PDF 簽收單 + ${photos.length} 張安裝照片` : "附件：PDF 簽收單";
     } else {
       throw new Error(result.message || "寄送失敗");
