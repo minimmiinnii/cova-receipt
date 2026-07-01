@@ -182,7 +182,7 @@ function getQuoteData() {
   const paid = parseFloat(document.getElementById("q-paid").value)||0;
   const cash = parseFloat(document.getElementById("q-cash").value)||0;
   // 整理成 Notion 文字格式
-  const notionText = items.map(i=>`${i.name}x${i.qty} $${i.sub}`).join("、") +
+  const notionText = items.map(i=>`${i.name} $${i.sub}`).join("、") +
     `｜總計$${total}｜已付$${paid}｜現場收費$${cash}`;
   return { items, total, paid, cash, notionText };
 }
