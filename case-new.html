@@ -33,6 +33,18 @@
     .success h2{font-size:20px;font-weight:500;margin-bottom:8px}
     .success p{font-size:13px;color:#6e6e73}
     .next-btn{margin-top:1.5rem;width:100%;padding:11px;border:.5px solid #d1d1d6;border-radius:10px;background:none;font-size:13px;cursor:pointer;font-family:inherit;color:#1d1d1f}
+    /* 估價明細 */
+    .quote-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
+    .quote-table th{font-size:11px;font-weight:500;color:#8e8e93;padding:4px 4px 6px;text-align:left}
+    .quote-table th.right{text-align:right}
+    .quote-table td{padding:4px}
+    .quote-table input{width:100%;padding:6px 8px;border:.5px solid #d1d1d6;border-radius:6px;font-size:12px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none}
+    .quote-table .del-btn{border:none;background:none;color:#8e8e93;font-size:16px;cursor:pointer;padding:0 4px}
+    .add-item-btn{width:100%;padding:8px;font-size:12px;color:#185FA5;background:#E6F1FB;border:.5px dashed #378ADD;border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:10px}
+    .quote-summary{border-top:.5px solid #e5e5ea;padding-top:10px;display:flex;flex-direction:column;gap:6px}
+    .quote-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+    .quote-row.total{font-weight:500}
+    .quote-row input{width:100px;padding:6px 8px;border:.5px solid #d1d1d6;border-radius:6px;font-size:12px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none;text-align:right}
   </style>
 </head>
 <body>
@@ -76,7 +88,27 @@
       </div>
     </div>
     <div class="field"><label>需要攜帶</label><input id="f-items" placeholder="例：進水管延長組"></div>
-    <div class="field"><label>非標準安裝收費</label><input id="f-fee" placeholder="例：600" inputmode="numeric"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">估價明細</div>
+    <table class="quote-table">
+      <thead>
+        <tr>
+          <th style="width:45%">服務項目</th>
+          <th style="width:15%;text-align:center">數量</th>
+          <th style="width:25%;text-align:right">小計</th>
+          <th style="width:15%"></th>
+        </tr>
+      </thead>
+      <tbody id="quote-body"></tbody>
+    </table>
+    <button class="add-item-btn" onclick="addQuoteRow()">＋ 新增項目</button>
+    <div class="quote-summary">
+      <div class="quote-row total"><span>總計</span><span id="q-total">NT$ 0</span></div>
+      <div class="quote-row"><span style="color:#6e6e73">已付</span><input type="number" id="q-paid" value="0" min="0" inputmode="numeric" onchange="calcQuote()"></div>
+      <div class="quote-row"><span style="color:#6e6e73">現場收費</span><input type="number" id="q-cash" value="0" min="0" inputmode="numeric" onchange="calcQuote()"></div>
+    </div>
   </div>
 
   <div class="section">
@@ -115,6 +147,49 @@ document.querySelectorAll("#f-appliance .chip").forEach(c=>{
   c.addEventListener("click",()=>c.classList.toggle("on"));
 });
 
+let quoteRowIdx = 0;
+function addQuoteRow(name="", qty=1, sub=0) {
+  quoteRowIdx++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input class="qnm" value="${name}" placeholder="項目名稱"></td>
+    <td><input class="qqty" type="number" value="${qty}" min="1" inputmode="numeric" style="text-align:center"></td>
+    <td><input class="qsub" type="number" value="${sub}" min="0" inputmode="numeric" style="text-align:right"></td>
+    <td><button class="del-btn" onclick="this.closest('tr').remove();calcQuote()">×</button></td>
+  `;
+  tr.querySelectorAll("input").forEach(i=>i.addEventListener("input", calcQuote));
+  document.getElementById("quote-body").appendChild(tr);
+  calcQuote();
+}
+
+function calcQuote() {
+  let total = 0;
+  document.querySelectorAll("#quote-body tr").forEach(tr => {
+    total += parseFloat(tr.querySelector(".qsub").value)||0;
+  });
+  document.getElementById("q-total").textContent = "NT$ " + total.toLocaleString();
+}
+
+function getQuoteData() {
+  const items = [];
+  document.querySelectorAll("#quote-body tr").forEach(tr => {
+    const nm = tr.querySelector(".qnm").value.trim();
+    const qty = parseFloat(tr.querySelector(".qqty").value)||1;
+    const sub = parseFloat(tr.querySelector(".qsub").value)||0;
+    if (nm) items.push({ name: nm, qty, sub });
+  });
+  const total = items.reduce((a,b)=>a+b.sub, 0);
+  const paid = parseFloat(document.getElementById("q-paid").value)||0;
+  const cash = parseFloat(document.getElementById("q-cash").value)||0;
+  // 整理成 Notion 文字格式
+  const notionText = items.map(i=>`${i.name}x${i.qty} $${i.sub}`).join("、") +
+    `｜總計$${total}｜已付$${paid}｜現場收費$${cash}`;
+  return { items, total, paid, cash, notionText };
+}
+
+// 初始加一列
+addQuoteRow();
+
 async function submitForm() {
   const name = document.getElementById("f-name").value.trim();
   const phone = document.getElementById("f-phone").value.trim();
@@ -124,6 +199,7 @@ async function submitForm() {
   const time = document.getElementById("f-time").value;
   const datetime = date ? (time ? date + " " + time : date) : "";
   const err = document.getElementById("err");
+  const quote = getQuoteData();
 
   if (!name){err.textContent="請填寫客戶姓名+安裝地區";err.style.display="block";return}
   if (!phone){err.textContent="請填寫連絡電話";err.style.display="block";return}
@@ -138,11 +214,15 @@ async function submitForm() {
     const resp = await fetch(GAS_URL,{method:"POST",body:JSON.stringify({
       action:"createCase",
       data:{
-        name,phone,address,appliances,
+        name, phone, address, appliances,
         model: document.getElementById("f-model").value.trim(),
         date: datetime,
         items: document.getElementById("f-items").value.trim(),
-        fee: document.getElementById("f-fee").value.trim(),
+        fee: quote.notionText,
+        quoteItems: quote.items,
+        quoteTotal: quote.total,
+        quotePaid: quote.paid,
+        quoteCash: quote.cash,
         sales: document.getElementById("f-sales").value,
         tech: document.getElementById("f-tech").value,
         status: document.getElementById("f-status").value,
@@ -169,13 +249,18 @@ async function submitForm() {
 function reset(){
   document.getElementById("form-view").style.display="block";
   document.getElementById("success-view").style.display="none";
-  ["f-name","f-phone","f-address","f-model","f-items","f-fee","f-album","f-note"].forEach(id=>document.getElementById(id).value="");
+  ["f-name","f-phone","f-address","f-model","f-items","f-album","f-note"].forEach(id=>document.getElementById(id).value="");
   ["f-elevator","f-source","f-sales","f-tech"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("f-status").value="聯繫中";
   document.getElementById("f-date").value="";
   document.getElementById("f-time").value="09:00";
   document.querySelectorAll("#f-appliance .chip.on").forEach(c=>c.classList.remove("on"));
+  document.getElementById("quote-body").innerHTML="";
+  document.getElementById("q-paid").value="0";
+  document.getElementById("q-cash").value="0";
   document.getElementById("err").style.display="none";
+  quoteRowIdx=0;
+  addQuoteRow();
   window.scrollTo(0,0);
 }
 </script>
