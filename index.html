@@ -206,20 +206,54 @@ function getParam(key) {
   return new URLSearchParams(window.location.search).get(key) || "—";
 }
 function loadCaseInfo() {
+  const params = new URLSearchParams(window.location.search);
   const map = { "f-customer":"customer","f-phone":"phone","f-address":"address",
-    "f-visit":"visit","f-model":"model","f-ptype":"ptype","f-stype":"stype" };
+    "f-model":"model","f-ptype":"ptype","f-stype":"stype" };
   for (const [id, p] of Object.entries(map)) {
     const el = document.getElementById(id);
-    if (el) el.textContent = getParam(p);
+    if (el) el.textContent = params.get(p) || "—";
   }
-  // 自動帶入非標準安裝收費金額
-  const fee = new URLSearchParams(window.location.search).get("fee") || "";
-  if (fee && fee !== "—" && fee !== "") {
-    setTimeout(() => {
-      const firstSub = document.querySelector("#detail-body .sub");
-      if (firstSub) { firstSub.value = fee; calcTotal(); }
-    }, 100);
+  // 日期格式處理
+  const visitEl = document.getElementById("f-visit");
+  if (visitEl) {
+    const raw = params.get("visit") || "—";
+    if (raw && raw !== "—") {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const mo = String(d.getMonth()+1).padStart(2,"0");
+        const day = String(d.getDate()).padStart(2,"0");
+        const h = String(d.getHours()).padStart(2,"0");
+        const mi = String(d.getMinutes()).padStart(2,"0");
+        visitEl.textContent = `${y}-${mo}-${day} ${h}:${mi}`;
+      } else {
+        visitEl.textContent = raw;
+      }
+    } else {
+      visitEl.textContent = "—";
+    }
   }
+  // 帶入估價明細
+  setTimeout(() => {
+    const quoteRaw = params.get("quoteItems") || "";
+    const paid = params.get("quotePaid") || "0";
+    const cash = params.get("quoteCash") || "0";
+    if (quoteRaw && quoteRaw !== "—") {
+      try {
+        const items = JSON.parse(decodeURIComponent(quoteRaw));
+        // 清空預設列
+        document.getElementById("detail-body").innerHTML = "";
+        rowIdx = 0;
+        items.forEach(item => addRow({ name: item.name, qty: item.qty, sub: item.sub, paid: 0, cash: 0 }));
+      } catch(e) {}
+    }
+    // 填入已付和現場收費到最後一列（或整體）
+    const paidEl = document.getElementById("q-paid");
+    const cashEl = document.getElementById("q-cash");
+    if (paidEl) paidEl.value = paid;
+    if (cashEl) cashEl.value = cash;
+    calcTotal();
+  }, 100);
 }
 
 // 明細表
