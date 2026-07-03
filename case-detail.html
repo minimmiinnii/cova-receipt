@@ -84,25 +84,34 @@ async function load() {
     if (r.status === "ok") {
       caseData = r.cases.find(c => String(c._row) === String(rowNum));
       if (caseData) {
-        // 解析非標準安裝收費金額為估價明細
-        const feeText = caseData["非標準安裝收費金額"] || "";
-        caseData["_quoteItems"] = [];
-        caseData["_quotePaid"] = 0;
-        caseData["_quoteCash"] = 0;
-        if (feeText) {
-          const parts = feeText.split("｜");
-          if (parts[0]) {
-            parts[0].split("、").forEach(item => {
-              const m = item.match(/^(.+?)\s*\$(\d+)$/);
-              if (m) caseData["_quoteItems"].push({ name: m[1].trim(), qty: 1, sub: parseFloat(m[2]) });
+        try {
+          const feeText = String(caseData["非標準安裝收費金額"] || "");
+          caseData["_quoteItems"] = [];
+          caseData["_quotePaid"] = 0;
+          caseData["_quoteCash"] = 0;
+          if (feeText) {
+            const parts = feeText.split("｜");
+            if (parts[0]) {
+              parts[0].split("、").forEach(function(item) {
+                const idx = item.lastIndexOf("$");
+                if (idx > 0) {
+                  const nm = item.substring(0, idx).trim();
+                  const amt = parseFloat(item.substring(idx+1)) || 0;
+                  if (nm) caseData["_quoteItems"].push({ name: nm, qty: 1, sub: amt });
+                }
+              });
+            }
+            parts.forEach(function(p) {
+              const paid = p.match(/已付\$(\d+)/);
+              const cash = p.match(/現場收費\$(\d+)/);
+              if (paid) caseData["_quotePaid"] = parseFloat(paid[1]);
+              if (cash) caseData["_quoteCash"] = parseFloat(cash[1]);
             });
           }
-          parts.forEach(p => {
-            const paid = p.match(/已付\$(\d+)/);
-            const cash = p.match(/現場收費\$(\d+)/);
-            if (paid) caseData["_quotePaid"] = parseFloat(paid[1]);
-            if (cash) caseData["_quoteCash"] = parseFloat(cash[1]);
-          });
+        } catch(e) {
+          caseData["_quoteItems"] = [];
+          caseData["_quotePaid"] = 0;
+          caseData["_quoteCash"] = 0;
         }
         renderDetail();
       }
