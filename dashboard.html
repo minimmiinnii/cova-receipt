@@ -105,15 +105,20 @@ if (user && user.role !== "tech") {
 function formatDate(raw) {
   if (!raw || raw === "未定" || raw === "—") return raw || "未定";
   try {
-    const d = new Date(raw);
-    if (isNaN(d.getTime())) return raw;
+    const s = String(raw).trim();
+    // 已經是正常格式 yyyy-MM-dd HH:mm 直接回傳
+    if (/^\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // ISO 格式轉換
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return s;
     const y = d.getFullYear();
     const mo = String(d.getMonth()+1).padStart(2,"0");
     const day = String(d.getDate()).padStart(2,"0");
     const h = String(d.getHours()).padStart(2,"0");
     const mi = String(d.getMinutes()).padStart(2,"0");
     return `${y}-${mo}-${day} ${h}:${mi}`;
-  } catch(e) { return raw; }
+  } catch(e) { return String(raw); }
 }
 
 async function loadCases() {
