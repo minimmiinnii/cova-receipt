@@ -68,11 +68,7 @@
   <input type="text" id="search" placeholder="搜尋客戶姓名、地區..." oninput="renderCases()">
 </div>
 
-<div class="filter-row">
-  <div class="fc on" onclick="setTech('',this)">全部師傅</div>
-  <div class="fc" onclick="setTech('呂師傅',this)">呂師傅</div>
-  <div class="fc" onclick="setTech('阿炮師傅',this)">阿炮師傅</div>
-</div>
+<div class="filter-row" id="tech-filter"></div>
 
 <div class="sec-hd"><span>案件列表</span></div>
 <div id="case-list"></div>
@@ -82,8 +78,6 @@
   <button class="logout-btn" onclick="logout()">登出</button>
 </div>
 
-<a class="fab" href="case-new.html" title="新增案件" aria-label="新增案件">＋</a>
-
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxFG9-gSqOlPTwRFdkc6MtRdU92KqDGDCp1jDu5m-RdzXT2Pxx8epjEmtBfa3X24ej0Yw/exec";
 let allCases = [];
@@ -92,7 +86,35 @@ let curTech = '';
 
 const user = JSON.parse(sessionStorage.getItem("cova_user") || "null");
 if (!user) { window.location.href = "login.html"; }
-else { document.getElementById("user-label").textContent = user.name + " · 管理者"; }
+else {
+  const roleLabel = user.role === "admin" ? "管理者" : user.role === "tech" ? "師傅" : "業務";
+  document.getElementById("user-label").textContent = user.name + " · " + roleLabel;
+}
+
+// 師傅帳號不顯示新增按鈕
+if (user && user.role !== "tech") {
+  const fab = document.createElement("a");
+  fab.className = "fab";
+  fab.href = "case-new.html";
+  fab.title = "新增案件";
+  fab.setAttribute("aria-label", "新增案件");
+  fab.textContent = "＋";
+  document.body.appendChild(fab);
+}
+
+function formatDate(raw) {
+  if (!raw || raw === "未定" || raw === "—") return raw || "未定";
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return raw;
+    const y = d.getFullYear();
+    const mo = String(d.getMonth()+1).padStart(2,"0");
+    const day = String(d.getDate()).padStart(2,"0");
+    const h = String(d.getHours()).padStart(2,"0");
+    const mi = String(d.getMinutes()).padStart(2,"0");
+    return `${y}-${mo}-${day} ${h}:${mi}`;
+  } catch(e) { return raw; }
+}
 
 async function loadCases() {
   try {
@@ -104,11 +126,21 @@ async function loadCases() {
     if (r.status === "ok") {
       allCases = r.cases;
       updateStats();
+      buildTechFilter();
       renderCases();
     }
   } catch(e) {
     document.getElementById("case-list").innerHTML = '<div class="empty">載入失敗，請重新整理</div>';
   }
+}
+
+function buildTechFilter() {
+  // 師傅帳號不顯示師傅篩選
+  if (user.role === "tech") return;
+  const techs = [...new Set(allCases.map(c=>c["派工師傅"]).filter(Boolean))];
+  const row = document.getElementById("tech-filter");
+  row.innerHTML = `<div class="fc on" onclick="setTech('',this)">全部師傅</div>` +
+    techs.map(t=>`<div class="fc" onclick="setTech('${t}',this)">${t}</div>`).join("");
 }
 
 function updateStats() {
@@ -143,10 +175,10 @@ function renderCases() {
 
   const el = document.getElementById("case-list");
   if (!list.length) { el.innerHTML = '<div class="empty">沒有符合的案件</div>'; return; }
-  el.innerHTML = list.map((c,i) => {
+  el.innerHTML = list.map((c) => {
     const s = c["案件進度"] || "聯繫中";
     const bc = s==="待安裝"?"b-bl":s==="完成"?"b-gr":s==="聯繫中"?"b-am":"b-gy";
-    const date = c["預約安裝日期"] || "未定";
+    const date = formatDate(c["預約安裝日期"]);
     return `<div class="case-card" onclick="openDetail(${c._row})">
       <div class="ct">
         <div class="cn">${c["客戶姓名+安裝地區"]||"—"}</div>
