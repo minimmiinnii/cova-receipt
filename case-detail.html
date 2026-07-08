@@ -40,6 +40,15 @@
     .chip{padding:5px 12px;border:.5px solid #d1d1d6;border-radius:20px;font-size:12px;cursor:pointer;color:#3a3a3c;background:#fff}
     .chip.on{background:#1d1d1f;border-color:#1d1d1f;color:#fff}
     .edit-sec-title{font-size:10px;font-weight:500;letter-spacing:1.5px;color:#8e8e93;text-transform:uppercase;margin-bottom:10px}
+    .quote-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
+    .quote-table th{font-size:11px;font-weight:500;color:#8e8e93;padding:4px 4px 6px;text-align:left}
+    .quote-table td{padding:4px}
+    .quote-table input{width:100%;padding:6px 8px;border:.5px solid #d1d1d6;border-radius:6px;font-size:12px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none}
+    .add-item-btn{width:100%;padding:8px;font-size:12px;color:#185FA5;background:#E6F1FB;border:.5px dashed #378ADD;border-radius:6px;cursor:pointer;font-family:inherit;margin-bottom:10px}
+    .quote-summary{border-top:.5px solid #e5e5ea;padding-top:10px;display:flex;flex-direction:column;gap:6px}
+    .quote-row{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+    .quote-row.total{font-weight:500}
+    .quote-row input{width:100px;padding:6px 8px;border:.5px solid #d1d1d6;border-radius:6px;font-size:12px;font-family:inherit;color:#1d1d1f;background:#fff;outline:none;text-align:right}
     .drive-btn{background:#1a73e8;color:#fff;border-color:#1a73e8}
     .del-btn{background:#fff2f2;color:#ff3b30;border-color:#ffb3b3}
     .confirm-del{background:#ff3b30;color:#fff;border-color:#ff3b30}
@@ -234,7 +243,25 @@ function enterEdit() {
         </div>
       </div>
       <div class="edit-field"><label>需要攜帶</label><input id="e-items" value="${c["需要攜帶"]||""}"></div>
-      <div class="edit-field"><label>非標準安裝收費</label><input id="e-fee" value="${c["非標準安裝收費金額"]||""}" inputmode="numeric"></div>
+    </div>
+    <div class="edit-section">
+      <div class="edit-sec-title">估價明細</div>
+      <table class="quote-table">
+        <thead><tr>
+          <th style="width:45%">服務項目</th>
+          <th style="width:15%;text-align:center">數量</th>
+          <th style="width:25%;text-align:right">小計</th>
+          <th style="width:15%"></th>
+        </tr></thead>
+        <tbody id="e-quote-body"></tbody>
+      </table>
+      <button class="add-item-btn" onclick="addEditQuoteRow()">＋ 新增項目</button>
+      <div class="quote-summary">
+        <div class="quote-row total"><span>總計</span><span id="e-q-total">NT$ 0</span></div>
+        <div class="quote-row"><span style="color:#6e6e73">已付</span><input type="number" id="e-q-paid" value="0" min="0" inputmode="numeric" onchange="calcEditQuote()"></div>
+        <div class="quote-row"><span style="color:#6e6e73">現場收費</span><input type="number" id="e-q-cash" value="0" min="0" inputmode="numeric" onchange="calcEditQuote()"></div>
+      </div>
+    <div style="display:none">
     </div>
 
     <div class="edit-section">
@@ -276,6 +303,60 @@ function enterEdit() {
   document.querySelectorAll("#e-appliance .chip").forEach(chip => {
     chip.addEventListener("click", () => chip.classList.toggle("on"));
   });
+
+  // 初始化估價明細
+  setTimeout(() => {
+    const items = c["_quoteItems"] || [];
+    const paid = c["_quotePaid"] || 0;
+    const cash = c["_quoteCash"] || 0;
+    editQuoteRowIdx = 0;
+    document.getElementById("e-quote-body").innerHTML = "";
+    if (items.length > 0) {
+      items.forEach(function(item) { addEditQuoteRow(item.name, item.qty, item.sub); });
+    } else {
+      addEditQuoteRow();
+    }
+    document.getElementById("e-q-paid").value = paid;
+    document.getElementById("e-q-cash").value = cash;
+    calcEditQuote();
+  }, 100);
+}
+
+let editQuoteRowIdx = 0;
+function addEditQuoteRow(name, qty, sub) {
+  name = name || ""; qty = qty || 1; sub = sub || 0;
+  editQuoteRowIdx++;
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input class="eqnm" value="${name}" placeholder="項目名稱"></td>
+    <td><input class="eqqty" type="number" value="${qty}" min="1" inputmode="numeric" style="text-align:center"></td>
+    <td><input class="eqsub" type="number" value="${sub}" min="0" inputmode="numeric" style="text-align:right"></td>
+    <td><button style="border:none;background:none;color:#8e8e93;font-size:16px;cursor:pointer;padding:0 4px" onclick="this.closest('tr').remove();calcEditQuote()">×</button></td>
+  `;
+  tr.querySelectorAll("input").forEach(i => i.addEventListener("input", calcEditQuote));
+  document.getElementById("e-quote-body").appendChild(tr);
+  calcEditQuote();
+}
+
+function calcEditQuote() {
+  let total = 0;
+  document.querySelectorAll("#e-quote-body tr").forEach(tr => {
+    total += parseFloat(tr.querySelector(".eqsub").value) || 0;
+  });
+  document.getElementById("e-q-total").textContent = "NT$ " + total.toLocaleString();
+}
+
+function getEditQuoteText() {
+  const items = [];
+  document.querySelectorAll("#e-quote-body tr").forEach(tr => {
+    const nm = tr.querySelector(".eqnm").value.trim();
+    const sub = parseFloat(tr.querySelector(".eqsub").value) || 0;
+    if (nm) items.push(nm + " $" + sub);
+  });
+  const total = [...document.querySelectorAll("#e-quote-body .eqsub")].reduce((a,b) => a + (parseFloat(b.value)||0), 0);
+  const paid = parseFloat(document.getElementById("e-q-paid").value) || 0;
+  const cash = parseFloat(document.getElementById("e-q-cash").value) || 0;
+  return items.join("、") + "｜總計$" + total + "｜已付$" + paid + "｜現場收費$" + cash;
 }
 
 function exitEdit() { renderDetail(); }
@@ -318,7 +399,7 @@ async function saveEdit() {
     "購買機型": document.getElementById("e-model").value.trim(),
     "預約安裝日期": datetime,
     "需要攜帶": document.getElementById("e-items").value.trim(),
-    "非標準安裝收費金額": document.getElementById("e-fee").value.trim(),
+    "非標準安裝收費金額": getEditQuoteText(),
     "負責業務": document.getElementById("e-sales").value,
     "派工師傅": document.getElementById("e-tech").value,
     "案件進度": document.getElementById("e-status").value,
